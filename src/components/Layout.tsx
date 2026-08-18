@@ -11,7 +11,7 @@ export function Layout() {
       <header className="sticky top-0 z-30 border-b border-stone-200 bg-stone-50/90 backdrop-blur">
         <div className="flex items-center justify-between px-4 py-3">
           <NavLink to="/" className="text-lg font-bold tracking-tight">
-            양화맵 <span className="text-brand-500">맛집</span>
+            YanghwaMap <span className="text-brand-500">맛집</span>
           </NavLink>
           <nav className="flex gap-1">
             <NavLink to="/" end className={tabClass}>
