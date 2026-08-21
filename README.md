@@ -33,11 +33,32 @@ npm run dev                  # http://localhost:5173 (프런트 + /api 함께 �
 > `VITE_` 접두사가 붙은 값만 빌드 결과물에 포함된다. `DATABASE_URL`과 `APP_PASSWORD`는
 > 절대 `VITE_`를 붙이지 말 것 — 붙이면 그대로 공개된다.
 
+`VITE_APP_PASSWORD`와 `APP_PASSWORD`는 **다른 변수다.** 로그인 검증은 서버가 하므로
+접두사 없는 `APP_PASSWORD`만 사용된다. 값에 따옴표를 붙이면 따옴표까지 비밀번호가 된다.
+
+로컬과 Vercel에 **같은 값**을 넣어야 한다. Vercel 환경 변수는 등록만으로는 반영되지 않고
+**다음 배포부터** 적용되므로, 값을 바꿨다면 재배포해야 한다.
+
 ### 데이터베이스 연결 (Neon)
 
-1. Vercel 프로젝트 → **Storage** → **Neon Postgres** 생성 후 프로젝트에 연결
-2. `DATABASE_URL`이 자동으로 주입된다
-3. 로컬로 가져오기: `vercel env pull .env.local` (또는 연결 문자열을 직접 붙여넣기)
+1. Vercel 프로젝트 → **Storage** → **Create Database** → **Neon Postgres**를 만들어 프로젝트에 연결
+2. 배포 환경에는 `DATABASE_URL`이 자동으로 주입된다
+3. 로컬에서 쓸 값은 **Storage → (생성한 DB) → Connect**의 연결 문자열을 복사한다
+
+```
+DATABASE_URL=postgres://<user>:<password>@<host>.neon.tech/<db>?sslmode=require
+```
+
+Vercel CLI로 한 번에 받아올 수도 있다:
+
+```bash
+npx vercel link              # 최초 1회
+npx vercel env pull .env.local
+```
+
+> `vercel env pull`은 `.env.local`을 **덮어쓴다.** 실행 후 `APP_PASSWORD`와
+> `VITE_KAKAO_MAP_APP_KEY`가 남아 있는지 확인할 것 (Vercel에 등록해 두지 않았다면 사라진다).
+
 4. `npm run db:setup` → `npm run db:seed`
 
 `npm run db:setup`은 여러 번 실행해도 안전하다. `npm run db:seed`는 테이블이 비어 있을 때만
@@ -138,6 +159,29 @@ scripts/
 파일 기반 라우팅을 흉내내 같은 핸들러를 개발 서버에 물려 주므로, `vercel dev` 없이
 `npm run dev` 하나로 프런트와 API를 함께 띄울 수 있다.
 
+### API
+
+| 메서드 | 경로 | 인증 | 설명 |
+|---|---|---|---|
+| `POST` | `/api/login` | — | `{ password }` 검증. 200 / 401 / 503 |
+| `GET` | `/api/restaurants` | 공개 | 전체 목록 (`created_at` 내림차순) |
+| `POST` | `/api/restaurants` | 필요 | 등록. 201 + 생성된 항목 |
+| `PATCH` | `/api/restaurants/:id` | 필요 | 부분 수정. 200 + 수정된 항목 |
+| `DELETE` | `/api/restaurants/:id` | 필요 | 삭제. 204 |
+
+인증이 필요한 요청은 `x-app-password` 헤더를 보낸다. 오류는 `{ "error": "..." }` 형태이며
+그대로 화면에 표시되므로 사용자가 읽을 문장으로 쓴다.
+
+`:id`는 uuid다. 형식이 아니면 DB를 조회하지 않고 404를 준다.
+본문은 필드별로 검증하며(`api/_lib/db.ts`의 `FIELDS`), 모르는 키는 무시하므로
+`id`나 `createdAt`을 실어 보내도 덮어쓰이지 않는다. 필드를 추가할 때는 `FIELDS`에만
+넣으면 되고, `RestaurantDraft`와 어긋나면 `satisfies`가 빌드에서 잡는다.
+
+> **`api/` 안의 상대 import 에는 반드시 `.js` 확장자를 붙일 것.**
+> Vercel 은 이 파일들을 번들하지 않고 파일별로 트랜스파일해 Node ESM 으로 실행하는데,
+> ESM 은 확장자를 요구한다. `tsconfig.api.json` 이 `moduleResolution: nodenext` 라
+> 빠뜨리면 `npm run build` 가 TS2835 로 잡아 준다.
+
 ## 배포 (Vercel)
 
 GitHub 저장소를 연결하면 자동 감지된다. 확인할 것:
@@ -146,5 +190,16 @@ GitHub 저장소를 연결하면 자동 감지된다. 확인할 것:
 - 환경 변수 `VITE_KAKAO_MAP_APP_KEY`, `APP_PASSWORD` 등록
 - 배포 도메인을 카카오 개발자센터 Web 플랫폼에 추가
 
-`api/` 아래 파일은 Vercel이 서버리스 함수로 배포한다. `vercel.json`의 SPA rewrite는
-`/api/`를 제외하도록 되어 있어(`/((?!api/).*)`) API 요청이 `index.html`로 새지 않는다.
+`api/` 아래 파일은 Vercel이 서버리스 함수로 배포한다(`_`로 시작하는 파일은 라우트가 되지
+않는다). `vercel.json`의 SPA rewrite는 `/api/`를 제외하도록 되어 있어(`/((?!api/).*)`)
+API 요청이 `index.html`로 새지 않는다.
+
+## 문제 해결
+
+| 증상 | 원인 |
+|---|---|
+| 로그인 화면에서 "서버에 APP_PASSWORD가 설정되지 않았습니다" | `APP_PASSWORD` 미설정. `VITE_APP_PASSWORD`는 다른 변수다 |
+| 비밀번호가 맞는데 401 | 로컬과 Vercel 값이 다르거나, 값에 따옴표가 붙었다 |
+| 환경 변수를 바꿨는데 그대로다 | 개발 서버 재시작 필요. Vercel은 재배포해야 반영된다 |
+| 목록 화면이 "다시 시도"만 보인다 | `DATABASE_URL` 미설정이거나 `db:setup`을 아직 안 돌렸다 |
+| 배포본만 500 (`ERR_MODULE_NOT_FOUND`) | `api/`의 상대 import에 `.js` 확장자가 빠졌다 |
