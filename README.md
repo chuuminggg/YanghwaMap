@@ -10,7 +10,7 @@
 - **검색** — 상호 / 메뉴 / 메모 / 참조 / 주소 통합 검색
 - **카카오맵 연동** — 장소 키워드 검색 한 번으로 주소·좌표·카카오맵 링크를 자동 입력
 - **지도 화면** — 필터 결과를 마커로 표시, 마커 클릭 시 상세로 이동
-- **화장실 화면** — 현재 위치 기준 근처 공중화장실을 지도 + 거리순 목록으로 표시
+- **화장실 화면** — 자치구별 목록(이름순) 또는 현재 위치 기준 거리순으로 공중화장실 조회
 - **항목별 정보** — 상호, 메뉴, 구/동, 주소, 추가 메모(간단 위치 요약), 참조, 방문 여부
 
 ## 시작하기
@@ -104,7 +104,7 @@ npx vercel env pull .env.local
 | `npm run db:seed:restrooms` | 공중화장실 시드 삽입 (`-- --force`로 재삽입) |
 | `npm run seed` | 엑셀 → `src/data/seed-restaurants.json` 재생성 |
 | `npm run restrooms:fetch` | 공공데이터 CSV 내려받아 → `src/data/seed-restrooms.json` |
-| `npm run restrooms:geocode` | 주소 → 좌표 채우기 (카카오 REST 키 필요) |
+| `npm run restrooms:geocode` | 주소 → 좌표 채우기 (카카오 REST 키 필요, 거리순/지도용) |
 
 > 원본 엑셀(`list_template/`)은 개인 데이터라 저장소에 포함하지 않는다.
 > 변환 결과인 `src/data/seed-restaurants.json`만 커밋되므로 `npm run seed`는 로컬에
@@ -144,14 +144,22 @@ PostgreSQL `restaurants` 테이블. 컬럼은 snake_case이고 `api/_lib/db.ts`�
 
 ```bash
 npm run restrooms:fetch       # 전국 CSV 내려받아 서울만 추려 seed JSON 생성
-npm run restrooms:geocode     # 주소 -> 좌표 (KAKAO_REST_API_KEY 필요)
 npm run db:setup              # restrooms 테이블 생성 (멱등)
-npm run db:seed:restrooms     # DB 삽입
+npm run db:seed:restrooms     # DB 삽입 — 여기까지만 해도 자치구별 목록은 동작한다
+npm run restrooms:geocode     # 주소 -> 좌표 (KAKAO_REST_API_KEY 필요, 거리순/지도용)
+npm run db:seed:restrooms -- --force
 ```
 
 **왜 지오코딩이 따로 필요한가** — 이 표준데이터는 2025년 2월부로 `WGS84 위도/경도` 제공이
-중단되어 CSV에 좌표 컬럼이 아예 없다. 거리순 정렬을 하려면 주소를 좌표로 바꿔야 한다.
+중단되어 CSV에 좌표 컬럼이 아예 없다. 그래서 `lat`/`lng` 는 nullable 이고, **좌표 없이도
+자치구별 목록은 그대로 동작한다.** 거리순 정렬과 지도 마커만 좌표를 필요로 하며,
 `npm run restrooms:geocode` 가 카카오 주소검색(도로명 → 지번 → 키워드 순)으로 채운다.
+
+**자치구는 어떻게 정하나** — 주소 문자열만으로는 부족하다. `용산구녹사평대로11길`처럼 붙여 쓴
+주소가 있고, 비탐욕 정규식은 `압구정로`를 `압구`로 잘라 낸다. 그래서 서울 25개 구 이름을
+주소·관리기관명에서 찾고(5,385건), 실패분은 `개방자치단체코드`가 같은 행들의 최빈 구로
+채운다(208건). 코드→구 매핑은 하드코딩하지 않고 해결된 행들에서 만들며, 한 코드가 여러 구에
+걸치면(순도 95% 미만) 추측하지 않는다. 결과는 25개 구 5,593건 전부 분류.
 
 - `KAKAO_REST_API_KEY`는 지도용 `VITE_KAKAO_MAP_APP_KEY`(JavaScript 키)와 **다른 값**이다.
   카카오 개발자센터 > 내 애플리케이션 > 앱 키 > **REST API 키**. 같은 앱에서 함께 발급된다.
@@ -169,18 +177,19 @@ npm run db:seed:restrooms     # DB 삽입
 api/
   _lib/db.ts             Neon 클라이언트, 입력 검증, row ↔ Restaurant 변환
   _lib/auth.ts           비밀번호 검증 + 공통 응답 헬퍼
-  _lib/restrooms.ts      근처 화장실 조회 (bbox + haversine)
+  _lib/restrooms.ts      자치구별 목록 + 근처 조회 (bbox + haversine)
   login.ts               POST /api/login
   restaurants/index.ts   GET · POST /api/restaurants
   restaurants/[id].ts    PATCH · DELETE /api/restaurants/:id
-  restrooms/index.ts     GET /api/restrooms
+  restrooms/index.ts     GET /api/restrooms (?district= | ?lat=&lng=)
+  restrooms/districts.ts GET /api/restrooms/districts
 src/
   components/   FilterBar, RestaurantCard, RestroomCard, RestaurantForm, PlaceSearchModal,
                 KakaoMap, Layout
   pages/        ListPage(/), MapPage(/map), RestroomPage(/restroom), NewPage(/new),
                 DetailPage(/:id), EditPage(/:id/edit)
   store/        useRestaurantStore(서버 캐시), useAuthStore, useFilterStore, selectors
-  hooks/        useKakaoSdk, useCurrentPosition, useNearbyRestrooms
+  hooks/        useKakaoSdk, useCurrentPosition, useNearbyRestrooms, useDistrictRestrooms
   lib/api.ts    /api 호출 래퍼 (비밀번호 헤더, 오류 변환)
   lib/kakao.ts  SDK 동적 로딩 + 장소 검색 래퍼
   lib/geo.ts    haversine 거리 · 거리 표기
@@ -208,7 +217,8 @@ scripts/
 | `POST` | `/api/restaurants` | 필요 | 등록. 201 + 생성된 항목 |
 | `PATCH` | `/api/restaurants/:id` | 필요 | 부분 수정. 200 + 수정된 항목 |
 | `DELETE` | `/api/restaurants/:id` | 필요 | 삭제. 204 |
-| `GET` | `/api/restrooms` | 공개 | 근처 공중화장실. `?lat=&lng=&radius=&limit=` |
+| `GET` | `/api/restrooms` | 공개 | `?district=마포구` 자치구 목록 / `?lat=&lng=&radius=&limit=` 거리순 |
+| `GET` | `/api/restrooms/districts` | 공개 | 자치구 목록 + 건수 (`district`, `total`, `located`) |
 
 인증이 필요한 요청은 `x-app-password` 헤더를 보낸다. 오류는 `{ "error": "..." }` 형태이며
 그대로 화면에 표시되므로 사용자가 읽을 문장으로 쓴다.

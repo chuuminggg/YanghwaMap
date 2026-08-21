@@ -3,15 +3,25 @@ import { EmptyState } from '../components/EmptyState'
 import { KakaoMap, type MapMarker } from '../components/KakaoMap'
 import { RestroomCard } from '../components/RestroomCard'
 import { useCurrentPosition } from '../hooks/useCurrentPosition'
+import { useDistrictRestrooms, useRestroomDistricts } from '../hooks/useDistrictRestrooms'
 import { useNearbyRestrooms } from '../hooks/useNearbyRestrooms'
 import { formatDistance } from '../lib/geo'
-import { openingHours, type NearbyRestroom } from '../types/restroom'
+import {
+  hasCoords,
+  isNearbyRestroom,
+  openingHours,
+  type NearbyRestroom,
+  type Restroom,
+} from '../types/restroom'
 
 const RADIUS_OPTIONS = [300, 500, 1000] as const
 type Radius = (typeof RADIUS_OPTIONS)[number]
+type Mode = 'district' | 'nearby'
 
 /** 로딩·에러일 때 매 렌더 새 배열을 만들지 않도록 고정한다 (KakaoMap이 markers 참조로 다시 그린다) */
-const NO_ITEMS: NearbyRestroom[] = []
+const NO_ITEMS: (Restroom | NearbyRestroom)[] = []
+
+const radiusLabel = (meters: number) => (meters < 1000 ? `${meters}m` : `${meters / 1000}km`)
 
 const chipClass = (active: boolean) =>
   `shrink-0 rounded-full border px-3 py-1.5 text-sm transition ${
@@ -20,25 +30,44 @@ const chipClass = (active: boolean) =>
       : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
   }`
 
-/** 현재 위치 기준으로 근처 공중화장실을 지도 + 거리순 목록으로 보여 준다. */
+const modeClass = (active: boolean) =>
+  `flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition ${
+    active ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'
+  }`
+
+/** 공중화장실을 자치구별(이름순) 또는 현재 위치 기준(거리순)으로 보여 준다. */
 export function RestroomPage() {
-  const { position, refresh } = useCurrentPosition()
+  const [mode, setMode] = useState<Mode>('district')
   const [radius, setRadius] = useState<Radius>(500)
+  const [district, setDistrict] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const listRef = useRef<HTMLUListElement>(null)
 
+  const { position, refresh } = useCurrentPosition()
   const origin = position.status === 'locating' ? null : position.origin
-  const nearby = useNearbyRestrooms(origin, radius)
-  const items = nearby.status === 'ready' ? nearby.items : NO_ITEMS
 
+  // 두 모드 모두 훅을 부르되, 활성 모드가 아니면 인자를 null 로 넘겨 요청 자체를 막는다
+  const nearby = useNearbyRestrooms(mode === 'nearby' ? origin : null, radius)
+  const byDistrict = useDistrictRestrooms(mode === 'district' ? district : null)
+  const { districts, error: districtsError } = useRestroomDistricts()
+
+  const active = mode === 'nearby' ? nearby : byDistrict
+  const items: (Restroom | NearbyRestroom)[] = active.status === 'ready' ? active.items : NO_ITEMS
+
+  // 좌표가 없는 항목은 지도에 찍을 수 없다 — 지오코딩 전에는 대부분이 여기 해당한다
   const markers = useMemo<MapMarker[]>(
     () =>
-      items.map((r) => ({
+      items.filter(hasCoords).map((r) => ({
         id: r.id,
         lat: r.lat,
         lng: r.lng,
         title: r.name,
-        subtitle: [formatDistance(r.distanceMeters), openingHours(r)].filter(Boolean).join(' · '),
+        subtitle: [
+          isNearbyRestroom(r) ? formatDistance(r.distanceMeters) : r.district,
+          openingHours(r),
+        ]
+          .filter(Boolean)
+          .join(' · '),
       })),
     [items],
   )
@@ -51,58 +80,124 @@ export function RestroomPage() {
       ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   }, [])
 
+  const switchMode = (next: Mode) => {
+    setMode(next)
+    setSelectedId(null)
+  }
+
+  const missing = items.length - markers.length
+
   return (
     <div className="flex h-[calc(100dvh-57px)] flex-col">
       <div className="space-y-2 border-b border-stone-200 bg-stone-50 px-4 py-3">
-        <div className="flex items-center gap-2">
-          <div className="flex gap-1.5">
-            {RADIUS_OPTIONS.map((value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setRadius(value)}
-                className={chipClass(radius === value)}
-              >
-                {value < 1000 ? `${value}m` : `${value / 1000}km`}
-              </button>
-            ))}
-          </div>
+        <div className="flex rounded-lg bg-stone-100 p-1">
           <button
             type="button"
-            onClick={refresh}
-            disabled={position.status === 'locating'}
-            className="ml-auto shrink-0 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-sm text-stone-600 transition hover:border-stone-300 disabled:opacity-50"
+            onClick={() => switchMode('district')}
+            className={modeClass(mode === 'district')}
           >
-            {position.status === 'locating' ? '위치 확인 중…' : '📍 현재 위치'}
+            지역구
+          </button>
+          <button
+            type="button"
+            onClick={() => switchMode('nearby')}
+            className={modeClass(mode === 'nearby')}
+          >
+            내 주변
           </button>
         </div>
 
-        <p className="text-xs text-stone-500">
-          {position.status === 'fallback'
-            ? position.reason
-            : position.status === 'locating'
-              ? '위치를 확인하는 중입니다…'
-              : `내 위치 기준 · 반경 ${radius < 1000 ? `${radius}m` : `${radius / 1000}km`} 안 ${items.length}곳`}
-        </p>
+        {mode === 'district' ? (
+          <>
+            <div className="-mx-4 overflow-x-auto px-4">
+              <div className="flex gap-1.5">
+                {districts.map(({ district: name, total }) => (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => {
+                      setDistrict(name)
+                      setSelectedId(null)
+                    }}
+                    className={chipClass(district === name)}
+                  >
+                    {name} {total}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="text-xs text-stone-500">
+              {districtsError ??
+                (district
+                  ? `${district} ${items.length}곳${missing > 0 ? ` · 좌표 미등록 ${missing}곳은 지도에 표시되지 않습니다` : ''}`
+                  : '자치구를 골라 주세요.')}
+            </p>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1.5">
+                {RADIUS_OPTIONS.map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setRadius(value)}
+                    className={chipClass(radius === value)}
+                  >
+                    {radiusLabel(value)}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={refresh}
+                disabled={position.status === 'locating'}
+                className="ml-auto shrink-0 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-sm text-stone-600 transition hover:border-stone-300 disabled:opacity-50"
+              >
+                {position.status === 'locating' ? '위치 확인 중…' : '📍 현재 위치'}
+              </button>
+            </div>
+            <p className="text-xs text-stone-500">
+              {position.status === 'fallback'
+                ? position.reason
+                : position.status === 'locating'
+                  ? '위치를 확인하는 중입니다…'
+                  : `내 위치 기준 · 반경 ${radiusLabel(radius)} 안 ${items.length}곳`}
+            </p>
+          </>
+        )}
       </div>
 
       <KakaoMap
         markers={markers}
         className="min-h-0 flex-[3]"
-        origin={origin}
+        origin={mode === 'nearby' ? origin : null}
         selectedId={selectedId}
         onMarkerClick={handleMarkerClick}
       />
 
       <div className="min-h-0 flex-[2] overflow-y-auto border-t border-stone-200 bg-stone-50 px-4 py-3">
-        {nearby.status === 'loading' ? (
-          <p className="py-8 text-center text-sm text-stone-400">근처 화장실을 찾는 중…</p>
-        ) : nearby.status === 'error' ? (
-          <EmptyState title="화장실 목록을 불러오지 못했습니다." description={nearby.message} />
+        {active.status === 'idle' ? (
+          <EmptyState
+            title="자치구를 골라 주세요."
+            description="위 칩에서 구를 고르면 그 구의 화장실을 이름순으로 보여 줍니다."
+          />
+        ) : active.status === 'loading' ? (
+          <p className="py-8 text-center text-sm text-stone-400">
+            {mode === 'nearby' ? '근처 화장실을 찾는 중…' : '목록을 불러오는 중…'}
+          </p>
+        ) : active.status === 'error' ? (
+          <EmptyState title="화장실 목록을 불러오지 못했습니다." description={active.message} />
         ) : items.length === 0 ? (
           <EmptyState
-            title="반경 안에 등록된 화장실이 없습니다."
-            description="반경을 넓히거나 현재 위치를 다시 잡아 보세요."
+            title={
+              mode === 'nearby' ? '반경 안에 등록된 화장실이 없습니다.' : '등록된 화장실이 없습니다.'
+            }
+            description={
+              mode === 'nearby'
+                ? '반경을 넓히거나 현재 위치를 다시 잡아 보세요.'
+                : '다른 자치구를 골라 보세요.'
+            }
           />
         ) : (
           <ul ref={listRef} className="space-y-3">

@@ -12,15 +12,14 @@ if (!url) {
 }
 
 const seedPath = fileURLToPath(new URL('../src/data/seed-restrooms.json', import.meta.url))
-const all = JSON.parse(readFileSync(seedPath, 'utf8'))
+const rows = JSON.parse(readFileSync(seedPath, 'utf8'))
 const force = process.argv.includes('--force')
 
-const rows = all.filter((r) => typeof r.lat === 'number' && typeof r.lng === 'number')
-const withoutCoords = all.length - rows.length
+// 좌표는 지오코딩 전이라 비어 있을 수 있다. 지역구별 목록은 좌표 없이도 동작하므로 전부 넣는다.
+const withoutCoords = rows.filter((r) => typeof r.lat !== 'number' || typeof r.lng !== 'number').length
 
 if (rows.length === 0) {
-  console.error(`좌표가 있는 행이 없습니다 (전체 ${all.length}건).
-먼저 좌표를 채우세요: npm run restrooms:geocode`)
+  console.error('시드 데이터가 비어 있습니다. 먼저 실행하세요: npm run restrooms:fetch')
   process.exit(1)
 }
 
@@ -38,13 +37,14 @@ if (force && count > 0) {
 }
 
 const COLUMNS = [
-  'code', 'name', 'type', 'road_address', 'jibun_address', 'lat', 'lng',
+  'code', 'name', 'type', 'district', 'road_address', 'jibun_address', 'lat', 'lng',
   'manager', 'phone', 'open_time', 'open_time_detail',
   'men_toilets', 'women_toilets', 'accessible', 'diaper_table', 'emergency_bell', 'cctv', 'data_date',
 ]
 
 const toValues = (r) => [
-  r.code ?? '', r.name, r.type ?? '', r.roadAddress ?? '', r.jibunAddress ?? '', r.lat, r.lng,
+  r.code ?? '', r.name, r.type ?? '', r.district ?? '', r.roadAddress ?? '', r.jibunAddress ?? '',
+  typeof r.lat === 'number' ? r.lat : null, typeof r.lng === 'number' ? r.lng : null,
   r.manager ?? '', r.phone ?? '', r.openTime ?? '', r.openTimeDetail ?? '',
   r.menToilets ?? 0, r.womenToilets ?? 0, r.accessible ?? false,
   r.diaperTable ?? null, r.emergencyBell ?? null, r.cctv ?? null, r.dataDate ?? '',
@@ -70,5 +70,9 @@ for (let start = 0; start < rows.length; start += BATCH) {
   process.stdout.write(`\r삽입 ${Math.min(start + BATCH, rows.length)}/${rows.length}   `)
 }
 
+const located = rows.length - withoutCoords
 console.log(`
-시드 ${inserted}건 삽입 완료 (좌표 없어 건너뛴 행 ${withoutCoords}건)`)
+시드 ${inserted}건 삽입 완료 (좌표 있음 ${located} / 없음 ${withoutCoords})`)
+if (withoutCoords > 0) {
+  console.log('좌표 없는 항목은 지역구별 목록에만 보인다. 채우려면: npm run restrooms:geocode')
+}

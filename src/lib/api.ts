@@ -1,5 +1,5 @@
 import type { Restaurant, RestaurantDraft } from '../types/restaurant'
-import type { NearbyRestroom } from '../types/restroom'
+import type { DistrictCount, NearbyRestroom, Restroom } from '../types/restroom'
 
 export class ApiError extends Error {
   readonly status: number
@@ -80,6 +80,13 @@ export const listNearbyRestrooms = (params: {
   if (params.limit !== undefined) query.set('limit', String(params.limit))
   return request<NearbyRestroom[]>(`/api/restrooms?${query}`)
 }
+
+/** 자치구 하나의 전체 목록. 좌표가 아직 없는 항목도 함께 온다. */
+export const listRestroomsByDistrict = (district: string) =>
+  request<Restroom[]>(`/api/restrooms?district=${encodeURIComponent(district)}`)
+
+/** 자치구 칩에 쓰는 목록 + 건수 */
+export const listRestroomDistricts = () => request<DistrictCount[]>('/api/restrooms/districts')
 
 /** 서버가 가진 APP_PASSWORD와 대조한다. 실패 사유는 ApiError 메시지에 담겨 온다. */
 export const verifyPassword = (candidate: string) =>

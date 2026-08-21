@@ -9,10 +9,13 @@ export type Restroom = {
   name: string
   /** 공중화장실 / 개방화장실 / 간이화장실 / 이동화장실 */
   type: string
+  /** 자치구. 원본 주소·관리기관명·개방자치단체코드에서 뽑는다 */
+  district: string
   roadAddress: string
   jibunAddress: string
-  lat: number
-  lng: number
+  /** 원본에 좌표가 없어 지오코딩으로 채운다. 아직 못 채운 항목은 비어 있다. */
+  lat?: number
+  lng?: number
   manager: string
   phone: string
   /** '정시', '상시' 같은 구분값 — 실제 시간은 openTimeDetail 쪽이 정확하다 */
@@ -32,6 +35,17 @@ export type Restroom = {
 
 /** 서버가 haversine으로 계산해 붙여 주는 거리 (미터) */
 export type NearbyRestroom = Restroom & { distanceMeters: number }
+
+/** 거리순 목록에서 왔는지 — 지역구 목록에는 distanceMeters 가 없다 */
+export const isNearbyRestroom = (r: Restroom | NearbyRestroom): r is NearbyRestroom =>
+  typeof (r as NearbyRestroom).distanceMeters === 'number'
+
+/** 자치구 칩에 쓰는 집계 — total 중 located 만 지도에 찍힌다 */
+export type DistrictCount = { district: string; total: number; located: number }
+
+/** 좌표가 채워진 항목만 지도에 그릴 수 있다. types/restaurant.ts 의 같은 이름 가드와 짝을 이룬다. */
+export const hasCoords = (r: Restroom): r is Restroom & { lat: number; lng: number } =>
+  typeof r.lat === 'number' && typeof r.lng === 'number'
 
 /** 도로명이 비어 있는 행이 있어 지번으로 떨어진다 */
 export const restroomAddress = (r: Pick<Restroom, 'roadAddress' | 'jibunAddress'>) =>

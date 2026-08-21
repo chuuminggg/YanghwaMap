@@ -1,4 +1,4 @@
-import type { NearbyRestroom } from '../../src/types/restroom.js'
+import type { DistrictCount, NearbyRestroom, Restroom } from '../../src/types/restroom.js'
 import { db, InvalidInputError } from './db.js'
 
 /** 위도 1도 ≈ 111.32km. bbox를 만들 때만 쓰는 근사값이고, 정렬은 haversine이 담당한다. */
@@ -43,15 +43,26 @@ export function parseNearbyQuery(query: Record<string, string | string[] | undef
   }
 }
 
+/** 지역구별 목록은 한 구가 최대 600건이라 통째로 내려도 부담이 없다. */
+export const DISTRICT_LIMIT = 800
+
+export function parseDistrict(query: Record<string, string | string[] | undefined>): string {
+  const value = first(query.district)?.trim()
+  if (!value) throw new InvalidInputError("'district' 값이 비어 있습니다.")
+  if (value.length > 20) throw new InvalidInputError("'district' 값이 올바르지 않습니다.")
+  return value
+}
+
 type Row = {
   id: string
   code: string
   name: string
   type: string
+  district: string
   road_address: string
   jibun_address: string
-  lat: number
-  lng: number
+  lat: number | null
+  lng: number | null
   manager: string
   phone: string
   open_time: string
@@ -63,19 +74,21 @@ type Row = {
   emergency_bell: boolean | null
   cctv: boolean | null
   data_date: string
-  distance_m: number
+  /** 근처 조회에서만 붙는다 */
+  distance_m?: number
 }
 
 /** snake_case 행을 프런트가 그대로 쓰는 모양으로 (null → undefined). db.ts의 toRestaurant와 같은 규칙. */
-const toRestroom = (row: Row): NearbyRestroom => ({
+const toRestroom = (row: Row): Restroom => ({
   id: row.id,
   code: row.code,
   name: row.name,
   type: row.type,
+  district: row.district,
   roadAddress: row.road_address,
   jibunAddress: row.jibun_address,
-  lat: row.lat,
-  lng: row.lng,
+  lat: row.lat ?? undefined,
+  lng: row.lng ?? undefined,
   manager: row.manager,
   phone: row.phone,
   openTime: row.open_time,
@@ -87,7 +100,11 @@ const toRestroom = (row: Row): NearbyRestroom => ({
   emergencyBell: row.emergency_bell ?? undefined,
   cctv: row.cctv ?? undefined,
   dataDate: row.data_date,
-  distanceMeters: Math.round(row.distance_m),
+})
+
+const toNearby = (row: Row): NearbyRestroom => ({
+  ...toRestroom(row),
+  distanceMeters: Math.round(row.distance_m ?? 0),
 })
 
 /**
@@ -121,5 +138,26 @@ export async function findNearbyRestrooms({
     [lat, lng, dLat, dLng, limit],
   )
 
-  return (rows as Row[]).filter((row) => row.distance_m <= radiusMeters).map(toRestroom)
+  return (rows as Row[]).filter((row) => (row.distance_m ?? Infinity) <= radiusMeters).map(toNearby)
+}
+
+/** 자치구 하나의 전체 목록. 좌표가 없는 항목도 포함한다 — 지오코딩 전에도 목록은 쓸 수 있어야 한다. */
+export async function listRestroomsByDistrict(district: string): Promise<Restroom[]> {
+  const rows = await db().query(
+    `select * from restrooms where district = $1 order by name, id limit $2`,
+    [district, DISTRICT_LIMIT],
+  )
+  return (rows as Row[]).map(toRestroom)
+}
+
+/** 칩 UI가 쓰는 자치구 목록. 좌표가 채워진 비율까지 함께 준다. */
+export async function listDistricts(): Promise<DistrictCount[]> {
+  const rows = await db().query(
+    `select district, count(*)::int as total, count(lat)::int as located
+       from restrooms
+      where district <> ''
+      group by district
+      order by district`,
+  )
+  return rows as DistrictCount[]
 }

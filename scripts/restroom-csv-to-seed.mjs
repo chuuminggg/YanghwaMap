@@ -122,6 +122,46 @@ const num = (v) => {
   return Number.isFinite(n) && n >= 0 ? n : 0
 }
 
+/* ---------- 자치구 추출 ---------- */
+/**
+ * 주소 문자열만으로는 부족하다. '용산구녹사평대로11길'처럼 붙여 쓴 주소가 있고,
+ * 비탐욕 정규식(\S*?[구군])은 '압구정로'를 '압구'로 잘라 낸다.
+ * 그래서 알려진 구 이름 목록을 부분문자열로 찾고, 못 찾으면 개방자치단체코드로 채운다.
+ */
+const SEOUL_GU = [
+  '강남구', '강동구', '강북구', '강서구', '관악구', '광진구', '구로구', '금천구', '노원구',
+  '도봉구', '동대문구', '동작구', '마포구', '서대문구', '서초구', '성동구', '성북구', '송파구',
+  '양천구', '영등포구', '용산구', '은평구', '종로구', '중구', '중랑구',
+]
+// '중구'가 '중랑구'에 걸리지 않도록 긴 이름부터 확인한다
+const GU_BY_LENGTH = [...SEOUL_GU].sort((a, b) => b.length - a.length)
+
+const findGu = (value) => {
+  if (!value) return null
+  for (const gu of GU_BY_LENGTH) if (value.includes(gu)) return gu
+  return null
+}
+
+/** 코드→구 매핑을 하드코딩하지 않고, 주소로 이미 풀린 행들에서 만든다. */
+function buildOrgCodeMap(records) {
+  const tally = new Map()
+  for (const { orgCode, district } of records) {
+    if (!orgCode || !district) continue
+    if (!tally.has(orgCode)) tally.set(orgCode, new Map())
+    const counts = tally.get(orgCode)
+    counts.set(district, (counts.get(district) ?? 0) + 1)
+  }
+
+  const map = new Map()
+  for (const [orgCode, counts] of tally) {
+    const total = [...counts.values()].reduce((a, b) => a + b, 0)
+    const [top, hits] = [...counts].sort((a, b) => b[1] - a[1])[0]
+    // 한 코드가 여러 구에 걸쳐 있으면 추측하지 않는다 (시설을 이웃 구청이 관리하는 경우가 있다)
+    if (hits / total >= 0.95) map.set(orgCode, top)
+  }
+  return map
+}
+
 /* ---------- 실행 ---------- */
 if (flag('download') || !existsSync(CSV)) {
   if (!flag('download')) console.log(`${CSV} 가 없어 새로 내려받습니다.`)
@@ -141,6 +181,7 @@ const col = (...names) => {
 }
 
 const IDX = {
+  orgCode: col('개방자치단체코드'),
   code: col('관리번호'),
   type: col('구분명', '구분'),
   name: col('화장실명'),
@@ -205,13 +246,18 @@ for (let i = 1; i < rows.length; i++) {
   }
   seen.add(key)
 
+  const manager = text(at(cells, 'manager'))
+
   items.push({
     code: text(at(cells, 'code')),
+    orgCode: text(at(cells, 'orgCode')),
     name,
     type: text(at(cells, 'type')),
+    // 주소로 먼저 풀고, 실패분은 아래에서 개방자치단체코드로 채운다
+    district: findGu(roadAddress) ?? findGu(jibunAddress) ?? findGu(manager) ?? '',
     roadAddress,
     jibunAddress,
-    manager: text(at(cells, 'manager')),
+    manager,
     phone: text(at(cells, 'phone')),
     openTime: text(at(cells, 'openTime')),
     openTimeDetail: text(at(cells, 'openTimeDetail')),
@@ -228,12 +274,29 @@ for (let i = 1; i < rows.length; i++) {
   })
 }
 
+// 주소로 구를 못 찾은 행을, 같은 자치단체코드를 쓰는 행들의 구로 채운다
+const orgCodeMap = buildOrgCodeMap(items)
+let rescued = 0
+for (const item of items) {
+  if (item.district) continue
+  const guess = orgCodeMap.get(item.orgCode)
+  if (guess) {
+    item.district = guess
+    rescued++
+  }
+}
+const unresolved = items.filter((it) => !it.district).length
+
 mkdirSync(dirname(OUT), { recursive: true })
 writeFileSync(OUT, `${JSON.stringify(items, null, 2)}\n`, 'utf8')
+
+const districts = new Set(items.map((it) => it.district).filter(Boolean))
 
 console.log(`
 대상 지역   ${REGION ?? '전국'}
 변환 완료   ${items.length}건 -> ${OUT}
 제외        지역 밖 ${skippedRegion} / 이름 없음 ${skippedNoName} / 중복 ${skippedDuplicate} / 깨진 행 ${skippedShort}
+자치구      ${districts.size}개 (주소로 ${items.length - rescued - unresolved}건, 자치단체코드로 ${rescued}건, 미분류 ${unresolved}건)
 
-다음 단계: npm run restrooms:geocode  (카카오 REST 키로 좌표 채우기)`)
+다음 단계: npm run db:setup && npm run db:seed:restrooms   (지역구별 목록은 좌표 없이 동작)
+           npm run restrooms:geocode                        (카카오 REST 키로 좌표 채우기)`)
