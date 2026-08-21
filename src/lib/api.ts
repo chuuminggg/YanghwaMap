@@ -1,4 +1,5 @@
 import type { Restaurant, RestaurantDraft } from '../types/restaurant'
+import type { NearbyRestroom } from '../types/restroom'
 
 export class ApiError extends Error {
   readonly status: number
@@ -63,6 +64,22 @@ export const updateRestaurant = (id: string, patch: Partial<RestaurantDraft>) =>
 
 export const deleteRestaurant = (id: string) =>
   request<void>(`/api/restaurants/${id}`, { method: 'DELETE', auth: true })
+
+/** 기준 좌표에서 가까운 순으로 공중화장실을 받아 온다. 공공데이터라 인증 없이 읽는다. */
+export const listNearbyRestrooms = (params: {
+  lat: number
+  lng: number
+  radius: number
+  limit?: number
+}) => {
+  const query = new URLSearchParams({
+    lat: String(params.lat),
+    lng: String(params.lng),
+    radius: String(params.radius),
+  })
+  if (params.limit !== undefined) query.set('limit', String(params.limit))
+  return request<NearbyRestroom[]>(`/api/restrooms?${query}`)
+}
 
 /** 서버가 가진 APP_PASSWORD와 대조한다. 실패 사유는 ApiError 메시지에 담겨 온다. */
 export const verifyPassword = (candidate: string) =>

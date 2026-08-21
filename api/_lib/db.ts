@@ -21,7 +21,7 @@ export class InvalidInputError extends Error {
 let client: ReturnType<typeof neon> | null = null
 
 /** 서버리스 인스턴스가 재사용될 때 클라이언트도 함께 재사용한다 (HTTP 드라이버라 풀 관리는 불필요). */
-function db() {
+export function db() {
   const url = connectionString()
   if (!url) throw new MissingDatabaseUrlError()
   client ??= neon(url)

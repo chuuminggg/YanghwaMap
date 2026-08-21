@@ -10,6 +10,7 @@
 - **검색** — 상호 / 메뉴 / 메모 / 참조 / 주소 통합 검색
 - **카카오맵 연동** — 장소 키워드 검색 한 번으로 주소·좌표·카카오맵 링크를 자동 입력
 - **지도 화면** — 필터 결과를 마커로 표시, 마커 클릭 시 상세로 이동
+- **화장실 화면** — 현재 위치 기준 근처 공중화장실을 지도 + 거리순 목록으로 표시
 - **항목별 정보** — 상호, 메뉴, 구/동, 주소, 추가 메모(간단 위치 요약), 참조, 방문 여부
 
 ## 시작하기
@@ -17,8 +18,9 @@
 ```bash
 npm install
 cp .env.example .env.local   # 아래 환경 변수 채우기
-npm run db:setup             # restaurants 테이블 생성 (한 번만)
+npm run db:setup             # restaurants / restrooms 테이블 생성 (한 번만)
 npm run db:seed              # 엑셀 시드 47건 삽입
+npm run db:seed:restrooms    # 공중화장실 시드 삽입 (아래 '공중화장실 데이터' 참고)
 npm run dev                  # http://localhost:5173 (프런트 + /api 함께 뜬다)
 ```
 
@@ -28,6 +30,7 @@ npm run dev                  # http://localhost:5173 (프런트 + /api 함께 �
 |---|---|---|
 | `VITE_KAKAO_MAP_APP_KEY` | 클라이언트 | 카카오맵 JavaScript 키 |
 | `DATABASE_URL` | 서버(`/api`) | Postgres 연결 문자열 |
+| `KAKAO_REST_API_KEY` | 빌드 스크립트 | 카카오 REST API 키. `npm run restrooms:geocode` 에서만 쓴다 (앱 실행에는 불필요) |
 | `APP_PASSWORD` | 서버(`/api`) | 진입 및 쓰기 비밀번호 |
 
 > `VITE_` 접두사가 붙은 값만 빌드 결과물에 포함된다. `DATABASE_URL`과 `APP_PASSWORD`는
@@ -96,9 +99,12 @@ npx vercel env pull .env.local
 | `npm run build` | 타입 체크(`tsc -b`) + 프로덕션 빌드 |
 | `npm run preview` | 빌드 결과 미리보기 |
 | `npm run lint` | oxlint |
-| `npm run db:setup` | `restaurants` 테이블·인덱스 생성 (멱등) |
+| `npm run db:setup` | `restaurants` / `restrooms` 테이블·인덱스 생성 (멱등) |
 | `npm run db:seed` | 시드 47건 삽입 (`-- --force`로 재삽입) |
+| `npm run db:seed:restrooms` | 공중화장실 시드 삽입 (`-- --force`로 재삽입) |
 | `npm run seed` | 엑셀 → `src/data/seed-restaurants.json` 재생성 |
+| `npm run restrooms:fetch` | 공공데이터 CSV 내려받아 → `src/data/seed-restrooms.json` |
+| `npm run restrooms:geocode` | 주소 → 좌표 채우기 (카카오 REST 키 필요) |
 
 > 원본 엑셀(`list_template/`)은 개인 데이터라 저장소에 포함하지 않는다.
 > 변환 결과인 `src/data/seed-restaurants.json`만 커밋되므로 `npm run seed`는 로컬에
@@ -132,27 +138,61 @@ PostgreSQL `restaurants` 테이블. 컬럼은 snake_case이고 `api/_lib/db.ts`�
 구 이름을 특정할 수 없던 3건(`천호사거리`, `양재동`, `경기도`)은 임의로 추정하지 않고
 원문을 그대로 두었다 — 수정 화면에서 직접 정리하면 된다.
 
+### 공중화장실 데이터
+
+`화장실` 탭이 쓰는 `restrooms` 테이블은 공공데이터포털 **전국공중화장실표준데이터**에서 만든다.
+
+```bash
+npm run restrooms:fetch       # 전국 CSV 내려받아 서울만 추려 seed JSON 생성
+npm run restrooms:geocode     # 주소 -> 좌표 (KAKAO_REST_API_KEY 필요)
+npm run db:setup              # restrooms 테이블 생성 (멱등)
+npm run db:seed:restrooms     # DB 삽입
+```
+
+**왜 지오코딩이 따로 필요한가** — 이 표준데이터는 2025년 2월부로 `WGS84 위도/경도` 제공이
+중단되어 CSV에 좌표 컬럼이 아예 없다. 거리순 정렬을 하려면 주소를 좌표로 바꿔야 한다.
+`npm run restrooms:geocode` 가 카카오 주소검색(도로명 → 지번 → 키워드 순)으로 채운다.
+
+- `KAKAO_REST_API_KEY`는 지도용 `VITE_KAKAO_MAP_APP_KEY`(JavaScript 키)와 **다른 값**이다.
+  카카오 개발자센터 > 내 애플리케이션 > 앱 키 > **REST API 키**. 같은 앱에서 함께 발급된다.
+- 결과인 `src/data/seed-restrooms.json`이 커밋되므로 **앱 실행·배포에는 REST 키가 필요 없다.**
+- 중간 저장하므로 끊겨도 다시 실행하면 남은 행부터 이어서 진행한다.
+- 원본 CSV(16MB)는 `list_template/`에 받아 두며 커밋하지 않는다.
+- 다른 지역: `node scripts/restroom-csv-to-seed.mjs --region 부산광역시` (또는 `--all`)
+
+원본은 하루 단위로만 갱신되고 **실시간 개방/점검 상태는 보장하지 않는다.** 화면 하단에도
+같은 주의 문구를 띄운다.
+
 ## 구조
 
 ```
 api/
   _lib/db.ts             Neon 클라이언트, 입력 검증, row ↔ Restaurant 변환
   _lib/auth.ts           비밀번호 검증 + 공통 응답 헬퍼
+  _lib/restrooms.ts      근처 화장실 조회 (bbox + haversine)
   login.ts               POST /api/login
   restaurants/index.ts   GET · POST /api/restaurants
   restaurants/[id].ts    PATCH · DELETE /api/restaurants/:id
+  restrooms/index.ts     GET /api/restrooms
 src/
-  components/   FilterBar, RestaurantCard, RestaurantForm, PlaceSearchModal, KakaoMap, Layout
-  pages/        ListPage(/), MapPage(/map), NewPage(/new), DetailPage(/:id), EditPage(/:id/edit)
+  components/   FilterBar, RestaurantCard, RestroomCard, RestaurantForm, PlaceSearchModal,
+                KakaoMap, Layout
+  pages/        ListPage(/), MapPage(/map), RestroomPage(/restroom), NewPage(/new),
+                DetailPage(/:id), EditPage(/:id/edit)
   store/        useRestaurantStore(서버 캐시), useAuthStore, useFilterStore, selectors
+  hooks/        useKakaoSdk, useCurrentPosition, useNearbyRestrooms
   lib/api.ts    /api 호출 래퍼 (비밀번호 헤더, 오류 변환)
   lib/kakao.ts  SDK 동적 로딩 + 장소 검색 래퍼
-  data/         seed-restaurants.json
+  lib/geo.ts    haversine 거리 · 거리 표기
+  data/         seed-restaurants.json, seed-restrooms.json
 scripts/
-  db-setup.mjs         테이블 생성
-  db-seed.mjs          시드 삽입
-  vite-api-plugin.ts   개발 서버에서 /api 핸들러를 그대로 실행 (빌드 제외)
-  xlsx-to-seed.mjs     엑셀 파서 (외부 의존성 없음)
+  db-setup.mjs              테이블 생성
+  db-seed.mjs               맛집 시드 삽입
+  db-seed-restrooms.mjs     화장실 시드 삽입 (배치 INSERT)
+  restroom-csv-to-seed.mjs  공공데이터 CSV 파서 (CP949, 외부 의존성 없음)
+  restroom-geocode.mjs      카카오 주소검색으로 좌표 채우기
+  vite-api-plugin.ts        개발 서버에서 /api 핸들러를 그대로 실행 (빌드 제외)
+  xlsx-to-seed.mjs          엑셀 파서 (외부 의존성 없음)
 ```
 
 `vite dev`는 원래 `/api`를 서비스하지 않는다. `scripts/vite-api-plugin.ts`가 Vercel의
@@ -168,6 +208,7 @@ scripts/
 | `POST` | `/api/restaurants` | 필요 | 등록. 201 + 생성된 항목 |
 | `PATCH` | `/api/restaurants/:id` | 필요 | 부분 수정. 200 + 수정된 항목 |
 | `DELETE` | `/api/restaurants/:id` | 필요 | 삭제. 204 |
+| `GET` | `/api/restrooms` | 공개 | 근처 공중화장실. `?lat=&lng=&radius=&limit=` |
 
 인증이 필요한 요청은 `x-app-password` 헤더를 보낸다. 오류는 `{ "error": "..." }` 형태이며
 그대로 화면에 표시되므로 사용자가 읽을 문장으로 쓴다.

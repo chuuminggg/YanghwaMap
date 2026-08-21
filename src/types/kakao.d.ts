@@ -20,13 +20,35 @@ declare global {
     class Map {
       constructor(container: HTMLElement, options: { center: LatLng; level?: number })
       setCenter(latlng: LatLng): void
+      /** setCenter와 달리 부드럽게 이동한다 */
+      panTo(latlng: LatLng): void
       setLevel(level: number): void
+      getLevel(): number
       setBounds(bounds: LatLngBounds, ...paddings: number[]): void
       relayout(): void
     }
 
+    class Size {
+      constructor(width: number, height: number)
+    }
+
+    class Point {
+      constructor(x: number, y: number)
+    }
+
+    /** 기본 핀 대신 쓸 마커 이미지. src는 URL 또는 data: URI. */
+    class MarkerImage {
+      constructor(src: string, size: Size, options?: { offset?: Point })
+    }
+
     class Marker {
-      constructor(options: { position: LatLng; map?: Map; title?: string })
+      constructor(options: {
+        position: LatLng
+        map?: Map
+        title?: string
+        image?: MarkerImage
+        zIndex?: number
+      })
       setMap(map: Map | null): void
       getPosition(): LatLng
     }

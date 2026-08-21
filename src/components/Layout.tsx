@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/useAuthStore'
 import { useRestaurantStore } from '../store/useRestaurantStore'
 
 const tabClass = ({ isActive }: { isActive: boolean }) =>
-  `rounded-full px-4 py-1.5 text-sm font-medium transition ${
+  `rounded-full px-3 py-1.5 text-sm font-medium transition ${
     isActive ? 'bg-brand-500 text-white' : 'text-stone-500 hover:bg-stone-100'
   }`
 
@@ -33,10 +33,13 @@ export function Layout() {
             <NavLink to="/map" className={tabClass}>
               지도
             </NavLink>
+            <NavLink to="/restroom" className={tabClass}>
+              화장실
+            </NavLink>
             <button
               type="button"
               onClick={logout}
-              className="ml-1 rounded-full px-3 py-1.5 text-sm text-stone-400 hover:bg-stone-100"
+              className="rounded-full px-3 py-1.5 text-sm text-stone-400 hover:bg-stone-100"
             >
               잠금
             </button>
