@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { InvalidInputError, MissingDatabaseUrlError } from './db'
+import { InvalidInputError, MissingDatabaseUrlError } from './db.js'
 
 /** 쓰기 요청이 공유 비밀번호를 실어 보내는 헤더 이름 */
 export const PASSWORD_HEADER = 'x-app-password'

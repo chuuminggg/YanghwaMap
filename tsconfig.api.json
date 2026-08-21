@@ -6,9 +6,11 @@
     "types": ["node"],
     "skipLibCheck": true,
 
-    /* Vercel이 esbuild로 번들하므로 확장자 없는 상대 경로를 그대로 쓴다 */
-    "module": "esnext",
-    "moduleResolution": "bundler",
+    /* Vercel은 api/*.ts 를 번들하지 않고 파일별로 트랜스파일해 Node ESM 으로 실행한다.
+       런타임과 같은 해석 규칙을 써야 확장자 누락 같은 실수가 빌드에서 잡힌다.
+       (상대 경로 import 에는 반드시 .js 확장자를 붙일 것) */
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,

@@ -1,5 +1,5 @@
 import { neon } from '@neondatabase/serverless'
-import type { Restaurant, RestaurantDraft } from '../../src/types/restaurant'
+import type { Restaurant, RestaurantDraft } from '../../src/types/restaurant.js'
 
 /** Vercel의 Neon 통합은 DATABASE_URL을, 구 Vercel Postgres는 POSTGRES_URL을 주입한다. */
 const connectionString = () => process.env.DATABASE_URL || process.env.POSTGRES_URL

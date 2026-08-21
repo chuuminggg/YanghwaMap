@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { handleError, methodNotAllowed, requireWriteAccess } from '../_lib/auth'
-import { insertRestaurant, listRestaurants, parseDraft } from '../_lib/db'
+import { handleError, methodNotAllowed, requireWriteAccess } from '../_lib/auth.js'
+import { insertRestaurant, listRestaurants, parseDraft } from '../_lib/db.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {

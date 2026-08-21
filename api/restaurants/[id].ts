@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { handleError, methodNotAllowed, requireWriteAccess } from '../_lib/auth'
-import { deleteRestaurant, parsePatch, patchRestaurant } from '../_lib/db'
+import { handleError, methodNotAllowed, requireWriteAccess } from '../_lib/auth.js'
+import { deleteRestaurant, parsePatch, patchRestaurant } from '../_lib/db.js'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
