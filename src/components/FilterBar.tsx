@@ -1,13 +1,15 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useRestaurantStore } from '../store/useRestaurantStore'
-import { useFilterStore, type VisitFilter } from '../store/useFilterStore'
-import { collectDistricts, collectDongs } from '../store/selectors'
+import { isFilterActive, useFilterStore, type VisitFilter } from '../store/useFilterStore'
+import { collectDistricts, collectDongs, collectMenus } from '../store/selectors'
 
 const VISIT_LABELS: Record<VisitFilter, string> = {
   all: '전체',
   visited: '가본 곳',
   wish: '가볼 곳',
 }
+
+type Tab = 'area' | 'menu'
 
 const chipClass = (active: boolean) =>
   `shrink-0 rounded-full border px-3 py-1.5 text-sm transition ${
@@ -16,77 +18,126 @@ const chipClass = (active: boolean) =>
       : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
   }`
 
-/** 구(1단계) → 동(2단계) 칩 필터 + 검색어 + 방문 여부 */
+const tabClass = (active: boolean) =>
+  `flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition ${
+    active ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'
+  }`
+
+/** 지역(구→동) / 메뉴 탭 칩 필터 + 검색어 + 방문 여부 */
 export function FilterBar({ compact = false }: { compact?: boolean }) {
   const restaurants = useRestaurantStore((s) => s.restaurants)
   const district = useFilterStore((s) => s.district)
   const dong = useFilterStore((s) => s.dong)
+  const menu = useFilterStore((s) => s.menu)
   const query = useFilterStore((s) => s.query)
   const visit = useFilterStore((s) => s.visit)
   const setDistrict = useFilterStore((s) => s.setDistrict)
   const setDong = useFilterStore((s) => s.setDong)
+  const setMenu = useFilterStore((s) => s.setMenu)
   const setQuery = useFilterStore((s) => s.setQuery)
   const setVisit = useFilterStore((s) => s.setVisit)
   const reset = useFilterStore((s) => s.reset)
 
+  const [tab, setTab] = useState<Tab>('area')
+
   const districts = useMemo(() => collectDistricts(restaurants), [restaurants])
   const dongs = useMemo(() => collectDongs(restaurants, district), [restaurants, district])
-  const isFiltered = district !== null || dong !== null || query !== '' || visit !== 'all'
+  // 주소를 특정하지 못해 '식당가', '기사식당'으로만 남은 항목도 여기서 찾을 수 있다
+  const menus = useMemo(() => collectMenus(restaurants), [restaurants])
+  const isFiltered = isFilterActive({ district, dong, menu, query, visit })
+
+  const resetButton = (
+    <button
+      type="button"
+      onClick={reset}
+      disabled={!isFiltered}
+      className="shrink-0 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm text-stone-500 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+    >
+      필터 초기화
+    </button>
+  )
 
   return (
     <div className="space-y-3">
       {!compact && (
-        <div className="flex gap-2">
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="상호, 메뉴, 메모 검색"
-            className="min-w-0 flex-1 rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500"
-          />
-          {isFiltered && (
-            <button
-              type="button"
-              onClick={reset}
-              className="shrink-0 rounded-lg border border-stone-200 px-3 py-2 text-sm text-stone-500 hover:bg-stone-50"
-            >
-              초기화
-            </button>
-          )}
-        </div>
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="상호, 메뉴, 메모 검색"
+          className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500"
+        />
       )}
 
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-        <button
-          type="button"
-          onClick={() => setDistrict(null)}
-          className={chipClass(district === null)}
-        >
-          전체 <span className="text-xs opacity-70">{restaurants.length}</span>
-        </button>
-        {districts.map((item) => (
-          <button
-            key={item.value}
-            type="button"
-            // 이미 선택된 구를 다시 누르면 해제
-            onClick={() => setDistrict(district === item.value ? null : item.value)}
-            className={chipClass(district === item.value)}
-          >
-            {item.value} <span className="text-xs opacity-70">{item.count}</span>
+      <div className="flex items-center gap-2">
+        <div className="flex flex-1 gap-1 rounded-lg bg-stone-100 p-1">
+          <button type="button" onClick={() => setTab('area')} className={tabClass(tab === 'area')}>
+            지역
+            {(district || dong) && <span className="ml-1 text-brand-500">•</span>}
           </button>
-        ))}
+          <button type="button" onClick={() => setTab('menu')} className={tabClass(tab === 'menu')}>
+            메뉴
+            {menu && <span className="ml-1 text-brand-500">•</span>}
+          </button>
+        </div>
+        {resetButton}
       </div>
 
-      {district && dongs.length > 0 && (
+      {tab === 'area' ? (
+        <>
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+            <button
+              type="button"
+              onClick={() => setDistrict(null)}
+              className={chipClass(district === null)}
+            >
+              전체 <span className="text-xs opacity-70">{restaurants.length}</span>
+            </button>
+            {districts.map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                // 이미 선택된 구를 다시 누르면 해제
+                onClick={() => setDistrict(district === item.value ? null : item.value)}
+                className={chipClass(district === item.value)}
+              >
+                {item.value} <span className="text-xs opacity-70">{item.count}</span>
+              </button>
+            ))}
+          </div>
+
+          {district && dongs.length > 0 && (
+            <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+              <button
+                type="button"
+                onClick={() => setDong(null)}
+                className={chipClass(dong === null)}
+              >
+                {district} 전체
+              </button>
+              {dongs.map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => setDong(dong === item.value ? null : item.value)}
+                  className={chipClass(dong === item.value)}
+                >
+                  {item.value} <span className="text-xs opacity-70">{item.count}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-          <button type="button" onClick={() => setDong(null)} className={chipClass(dong === null)}>
-            {district} 전체
+          <button type="button" onClick={() => setMenu(null)} className={chipClass(menu === null)}>
+            전체 <span className="text-xs opacity-70">{restaurants.length}</span>
           </button>
-          {dongs.map((item) => (
+          {menus.map((item) => (
             <button
               key={item.value}
               type="button"
-              onClick={() => setDong(dong === item.value ? null : item.value)}
-              className={chipClass(dong === item.value)}
+              onClick={() => setMenu(menu === item.value ? null : item.value)}
+              className={chipClass(menu === item.value)}
             >
               {item.value} <span className="text-xs opacity-70">{item.count}</span>
             </button>

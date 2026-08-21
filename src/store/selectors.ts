@@ -22,9 +22,23 @@ export const collectDistricts = (list: Restaurant[]): AreaBucket[] =>
 export const collectDongs = (list: Restaurant[], district: string | null): AreaBucket[] =>
   district ? bucket(list.filter((r) => r.district === district).map((r) => r.dong)) : []
 
+/**
+ * '콩나물해장, 소머리국밥'처럼 한 칸에 여러 메뉴가 들어 있어 쉼표/슬래시로 나눈다.
+ * '기사식당 다수', '만두국 외'처럼 수량을 덧붙인 표기는 꼬리말을 떼어 같은 칩으로 묶는다.
+ */
+export const splitMenus = (menu: string): string[] =>
+  menu
+    .split(/[,/·]/)
+    .map((part) => part.trim().replace(/\s*(다수|외|등)$/, '').trim())
+    .filter(Boolean)
+
+export const collectMenus = (list: Restaurant[]): AreaBucket[] =>
+  bucket(list.flatMap((r) => splitMenus(r.menu)))
+
 export type FilterCriteria = {
   district: string | null
   dong: string | null
+  menu: string | null
   query: string
   visit: VisitFilter
 }
@@ -34,6 +48,7 @@ export function filterRestaurants(list: Restaurant[], f: FilterCriteria): Restau
   return list.filter((r) => {
     if (f.district && r.district !== f.district) return false
     if (f.dong && r.dong !== f.dong) return false
+    if (f.menu && !splitMenus(r.menu).includes(f.menu)) return false
     if (f.visit === 'visited' && !r.visited) return false
     if (f.visit === 'wish' && r.visited) return false
     if (!q) return true

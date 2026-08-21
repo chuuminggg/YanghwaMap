@@ -12,12 +12,13 @@ export function MapPage() {
   const restaurants = useRestaurantStore((s) => s.restaurants)
   const district = useFilterStore((s) => s.district)
   const dong = useFilterStore((s) => s.dong)
+  const menu = useFilterStore((s) => s.menu)
   const query = useFilterStore((s) => s.query)
   const visit = useFilterStore((s) => s.visit)
 
   const filtered = useMemo(
-    () => filterRestaurants(restaurants, { district, dong, query, visit }),
-    [restaurants, district, dong, query, visit],
+    () => filterRestaurants(restaurants, { district, dong, menu, query, visit }),
+    [restaurants, district, dong, menu, query, visit],
   )
 
   const markers = useMemo<MapMarker[]>(
