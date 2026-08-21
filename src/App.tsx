@@ -1,21 +1,29 @@
 import { createBrowserRouter, RouterProvider } from 'react-router'
 import { Layout } from './components/Layout'
+import { RequireAuth } from './components/RequireAuth'
 import { DetailPage } from './pages/DetailPage'
 import { EditPage } from './pages/EditPage'
 import { ListPage } from './pages/ListPage'
+import { LoginPage } from './pages/LoginPage'
 import { MapPage } from './pages/MapPage'
 import { NewPage } from './pages/NewPage'
 
 const router = createBrowserRouter([
+  { path: '/login', element: <LoginPage /> },
   {
     path: '/',
-    element: <Layout />,
+    element: <RequireAuth />,
     children: [
-      { index: true, element: <ListPage /> },
-      { path: 'map', element: <MapPage /> },
-      { path: 'new', element: <NewPage /> },
-      { path: ':id', element: <DetailPage /> },
-      { path: ':id/edit', element: <EditPage /> },
+      {
+        element: <Layout />,
+        children: [
+          { index: true, element: <ListPage /> },
+          { path: 'map', element: <MapPage /> },
+          { path: 'new', element: <NewPage /> },
+          { path: ':id', element: <DetailPage /> },
+          { path: ':id/edit', element: <EditPage /> },
+        ],
+      },
     ],
   },
 ])

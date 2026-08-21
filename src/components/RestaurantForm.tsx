@@ -7,8 +7,9 @@ import { PlaceSearchModal } from './PlaceSearchModal'
 type Props = {
   initial?: RestaurantDraft
   submitLabel: string
-  onSubmit: (draft: RestaurantDraft) => void
-  onDelete?: () => void
+  /** 서버 저장이 끝날 때까지 기다리므로 Promise를 돌려줘도 된다 */
+  onSubmit: (draft: RestaurantDraft) => void | Promise<void>
+  onDelete?: () => void | Promise<void>
 }
 
 const labelClass = 'block text-sm font-medium text-stone-700'
@@ -20,6 +21,8 @@ export function RestaurantForm({ initial, submitLabel, onSubmit, onDelete }: Pro
   const navigate = useNavigate()
   const [draft, setDraft] = useState<RestaurantDraft>(initial ?? emptyDraft())
   const [searchOpen, setSearchOpen] = useState(false)
+  const [pending, setPending] = useState<'submit' | 'delete' | null>(null)
+  const [error, setError] = useState('')
 
   const set = <K extends keyof RestaurantDraft>(key: K, value: RestaurantDraft[K]) =>
     setDraft((prev) => ({ ...prev, [key]: value }))
@@ -35,11 +38,26 @@ export function RestaurantForm({ initial, submitLabel, onSubmit, onDelete }: Pro
     setSearchOpen(false)
   }
 
+  /** 저장 중 이중 제출을 막고, 서버가 거절하면 폼에 그대로 머문 채 이유를 보여 준다. */
+  const run = async (kind: 'submit' | 'delete', action: () => void | Promise<void>) => {
+    if (pending) return
+    setPending(kind)
+    setError('')
+    try {
+      await action()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : '저장에 실패했습니다.')
+    } finally {
+      // 성공하면 보통 화면이 이동하지만, 삭제 확인을 취소한 경우처럼 그대로 남을 수도 있다
+      setPending(null)
+    }
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const name = draft.name.trim()
     if (!name) return
-    onSubmit({ ...draft, name })
+    void run('submit', () => onSubmit({ ...draft, name }))
   }
 
   return (
@@ -162,12 +180,15 @@ export function RestaurantForm({ initial, submitLabel, onSubmit, onDelete }: Pro
         가본 곳
       </label>
 
+      {error && <p className="text-sm text-red-600">{error}</p>}
+
       <div className="flex gap-2 pt-2">
         <button
           type="submit"
-          className="flex-1 rounded-lg bg-brand-500 px-4 py-2.5 font-medium text-white hover:bg-brand-600"
+          disabled={pending !== null}
+          className="flex-1 rounded-lg bg-brand-500 px-4 py-2.5 font-medium text-white hover:bg-brand-600 disabled:bg-stone-300"
         >
-          {submitLabel}
+          {pending === 'submit' ? '저장 중…' : submitLabel}
         </button>
         <button
           type="button"
@@ -181,10 +202,11 @@ export function RestaurantForm({ initial, submitLabel, onSubmit, onDelete }: Pro
       {onDelete && (
         <button
           type="button"
-          onClick={onDelete}
-          className="w-full rounded-lg border border-red-200 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
+          disabled={pending !== null}
+          onClick={() => void run('delete', onDelete)}
+          className="w-full rounded-lg border border-red-200 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 disabled:text-stone-400"
         >
-          삭제
+          {pending === 'delete' ? '삭제 중…' : '삭제'}
         </button>
       )}
 

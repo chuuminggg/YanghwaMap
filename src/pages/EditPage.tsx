@@ -32,13 +32,13 @@ export function EditPage() {
       <RestaurantForm
         initial={toDraft(restaurant)}
         submitLabel="수정 저장"
-        onSubmit={(next) => {
-          update(restaurant.id, next)
+        onSubmit={async (next) => {
+          await update(restaurant.id, next)
           navigate(`/${restaurant.id}`, { replace: true })
         }}
-        onDelete={() => {
+        onDelete={async () => {
           if (!window.confirm(`'${restaurant.name}'을(를) 삭제할까요?`)) return
-          remove(restaurant.id)
+          await remove(restaurant.id)
           navigate('/', { replace: true })
         }}
       />

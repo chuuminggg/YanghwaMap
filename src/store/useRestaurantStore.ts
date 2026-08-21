@@ -1,61 +1,91 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import * as api from '../lib/api'
 import type { Restaurant, RestaurantDraft } from '../types/restaurant'
-import { createSeedRestaurants } from '../data/seed'
+
+type Status = 'idle' | 'loading' | 'ready' | 'error'
 
 type RestaurantState = {
   restaurants: Restaurant[]
-  add: (draft: RestaurantDraft) => string
-  update: (id: string, patch: Partial<RestaurantDraft>) => void
-  remove: (id: string) => void
-  toggleVisited: (id: string) => void
-  /** 시드 데이터로 되돌린다 (사용자가 직접 입력한 내용은 사라짐) */
-  resetToSeed: () => void
+  status: Status
+  /** load() 실패 사유. 개별 CRUD 실패는 호출한 화면이 직접 처리한다. */
+  error: string | null
+  load: (force?: boolean) => Promise<void>
+  add: (draft: RestaurantDraft) => Promise<string>
+  update: (id: string, patch: Partial<RestaurantDraft>) => Promise<void>
+  remove: (id: string) => Promise<void>
+  toggleVisited: (id: string) => Promise<void>
 }
 
-const newId = () =>
-  typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : `r-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+const toMessage = (error: unknown) =>
+  error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.'
 
-export const useRestaurantStore = create<RestaurantState>()(
-  persist(
-    (set) => ({
-      // 저장된 값이 없으면 이 초기값이 그대로 첫 화면 데이터가 된다
-      restaurants: createSeedRestaurants(),
+/** 여러 화면이 동시에 마운트되며 load()를 불러도 요청은 한 번만 나가게 한다. */
+let inflight: Promise<void> | null = null
 
-      add: (draft) => {
-        const now = new Date().toISOString()
-        const id = newId()
-        set((state) => ({
-          restaurants: [{ ...draft, id, createdAt: now, updatedAt: now }, ...state.restaurants],
-        }))
-        return id
-      },
+/**
+ * 데이터의 원본은 PostgreSQL이다. 이 스토어는 서버 응답을 담아 두는 캐시일 뿐이라
+ * 브라우저에 영속화하지 않는다 (persist 미들웨어 없음).
+ */
+export const useRestaurantStore = create<RestaurantState>()((set, get) => ({
+  restaurants: [],
+  status: 'idle',
+  error: null,
 
-      update: (id, patch) =>
-        set((state) => ({
-          restaurants: state.restaurants.map((r) =>
-            r.id === id ? { ...r, ...patch, updatedAt: new Date().toISOString() } : r,
-          ),
-        })),
+  load: async (force = false) => {
+    if (inflight) return inflight
+    if (!force && get().status === 'ready') return
 
-      remove: (id) =>
-        set((state) => ({ restaurants: state.restaurants.filter((r) => r.id !== id) })),
+    set({ status: 'loading', error: null })
+    inflight = (async () => {
+      try {
+        set({ restaurants: await api.listRestaurants(), status: 'ready', error: null })
+      } catch (error) {
+        set({ status: 'error', error: toMessage(error) })
+      } finally {
+        inflight = null
+      }
+    })()
+    return inflight
+  },
 
-      toggleVisited: (id) =>
-        set((state) => ({
-          restaurants: state.restaurants.map((r) =>
-            r.id === id ? { ...r, visited: !r.visited, updatedAt: new Date().toISOString() } : r,
-          ),
-        })),
+  add: async (draft) => {
+    const created = await api.createRestaurant(draft)
+    set((state) => ({ restaurants: [created, ...state.restaurants] }))
+    return created.id
+  },
 
-      resetToSeed: () => set({ restaurants: createSeedRestaurants() }),
-    }),
-    {
-      name: 'yanghwa-map/restaurants',
-      version: 1,
-      partialize: (state) => ({ restaurants: state.restaurants }),
-    },
-  ),
-)
+  update: async (id, patch) => {
+    const updated = await api.updateRestaurant(id, patch)
+    set((state) => ({
+      restaurants: state.restaurants.map((r) => (r.id === id ? updated : r)),
+    }))
+  },
+
+  remove: async (id) => {
+    await api.deleteRestaurant(id)
+    set((state) => ({ restaurants: state.restaurants.filter((r) => r.id !== id) }))
+  },
+
+  // 토글은 즉각 반응해야 하므로 먼저 화면에 반영하고, 실패하면 해당 항목만 되돌린다
+  toggleVisited: async (id) => {
+    const before = get().restaurants.find((r) => r.id === id)
+    if (!before) return
+
+    const visited = !before.visited
+    set((state) => ({
+      restaurants: state.restaurants.map((r) => (r.id === id ? { ...r, visited } : r)),
+    }))
+
+    try {
+      const updated = await api.updateRestaurant(id, { visited })
+      set((state) => ({
+        restaurants: state.restaurants.map((r) => (r.id === id ? updated : r)),
+      }))
+    } catch (error) {
+      set((state) => ({
+        restaurants: state.restaurants.map((r) => (r.id === id ? before : r)),
+      }))
+      throw error
+    }
+  },
+}))

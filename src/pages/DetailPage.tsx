@@ -14,6 +14,21 @@ export function DetailPage() {
   const update = useRestaurantStore((s) => s.update)
   const toggleVisited = useRestaurantStore((s) => s.toggleVisited)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  /** 서버 반영이 끝날 때까지 버튼을 잠그고, 실패하면 이유를 화면에 남긴다. */
+  const save = async (action: () => Promise<void>) => {
+    setSaving(true)
+    setError('')
+    try {
+      await action()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : '저장에 실패했습니다.')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const markers = useMemo<MapMarker[]>(
     () =>
@@ -49,14 +64,17 @@ export function DetailPage() {
         </div>
         <button
           type="button"
-          onClick={() => toggleVisited(restaurant.id)}
-          className={`shrink-0 rounded-full px-3 py-1 text-sm ${
+          disabled={saving}
+          onClick={() => void save(() => toggleVisited(restaurant.id))}
+          className={`shrink-0 rounded-full px-3 py-1 text-sm disabled:opacity-60 ${
             restaurant.visited ? 'bg-brand-50 text-brand-600' : 'bg-stone-100 text-stone-500'
           }`}
         >
           {restaurant.visited ? '가본 곳' : '가볼 곳'}
         </button>
       </div>
+
+      {error && <p className="text-sm text-red-600">{error}</p>}
 
       <KakaoMap markers={markers} className="h-56 overflow-hidden rounded-xl" />
 
@@ -102,8 +120,8 @@ export function DetailPage() {
         initialKeyword={defaultSearchKeyword(restaurant)}
         onClose={() => setSearchOpen(false)}
         onSelect={(place) => {
-          update(restaurant.id, placeToPatch(place).patch)
           setSearchOpen(false)
+          void save(() => update(restaurant.id, placeToPatch(place).patch))
         }}
       />
     </div>
