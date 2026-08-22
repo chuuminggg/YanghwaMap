@@ -11,6 +11,7 @@
     "seed": "node scripts/xlsx-to-seed.mjs",
     "restrooms:fetch": "node scripts/restroom-csv-to-seed.mjs --download",
     "restrooms:geocode": "node --env-file=.env.local scripts/restroom-geocode.mjs",
+    "restaurants:geocode": "node --env-file=.env.local scripts/restaurant-geocode.mjs",
     "db:setup": "node --env-file=.env.local scripts/db-setup.mjs",
     "db:seed": "node --env-file=.env.local scripts/db-seed.mjs",
     "db:seed:restrooms": "node --env-file=.env.local scripts/db-seed-restrooms.mjs"

@@ -107,6 +107,7 @@ type Row = {
   reference: string
   visited: boolean
   rating: number | null
+  coord_source: string
   created_at: Date | string
   updated_at: Date | string
 }
@@ -130,15 +131,20 @@ const toRestaurant = (row: Row): Restaurant => ({
   reference: row.reference,
   visited: row.visited,
   rating: row.rating ?? undefined,
+  coordSource: (row.coord_source || undefined) as Restaurant['coordSource'],
   createdAt: iso(row.created_at),
   updatedAt: iso(row.updated_at),
 })
 
-const columnsOf = (input: RestaurantInput) =>
-  (Object.keys(input) as FieldKey[]).map((key) => ({
+const columnsOf = (input: RestaurantInput) => {
+  const fields = (Object.keys(input) as FieldKey[]).map((key) => ({
     column: FIELDS[key].column,
     value: input[key] as string | number | boolean | null,
   }))
+  // 좌표를 직접 지정했다면 '주소 찾기'로 고른 정확한 값이므로 추정 표시를 지운다
+  if ('lat' in input || 'lng' in input) fields.push({ column: 'coord_source', value: '' })
+  return fields
+}
 
 /** 새로 추가한 곳이 위로 오도록 등록순 내림차순. 수정해도 목록 위치는 흔들리지 않는다. */
 export async function listRestaurants(): Promise<Restaurant[]> {

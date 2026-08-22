@@ -24,12 +24,20 @@ export type Restaurant = {
   visited: boolean
   /** 1~5. 미평가는 undefined */
   rating?: number
+  /**
+   * 좌표 출처. 'landmark'는 메모의 랜드마크로 자동 추정한 값이라 상호의 정확한 위치가 아니다
+   * (예: '성내도서관옆' -> 성내도서관 좌표). 비어 있으면 '주소 찾기'로 직접 고른 정확한 좌표다.
+   */
+  coordSource?: 'landmark'
   createdAt: string
   updatedAt: string
 }
 
-/** 폼에서 다루는 입력값 — id/타임스탬프는 스토어가 채운다. */
-export type RestaurantDraft = Omit<Restaurant, 'id' | 'createdAt' | 'updatedAt'>
+/**
+ * 폼에서 다루는 입력값 — id/타임스탬프는 스토어가 채운다.
+ * coordSource 는 서버가 정한다: lat/lng 를 직접 지정하면(주소 찾기) 정확한 좌표로 보고 비운다.
+ */
+export type RestaurantDraft = Omit<Restaurant, 'id' | 'createdAt' | 'updatedAt' | 'coordSource'>
 
 export const emptyDraft = (): RestaurantDraft => ({
   name: '',
@@ -45,6 +53,9 @@ export const emptyDraft = (): RestaurantDraft => ({
 
 export const hasCoords = (r: Restaurant): r is Restaurant & { lat: number; lng: number } =>
   typeof r.lat === 'number' && typeof r.lng === 'number'
+
+/** 랜드마크로 추정한 좌표 — 실제 상호 위치와 조금 어긋날 수 있다 */
+export const isApproximate = (r: Pick<Restaurant, 'coordSource'>) => r.coordSource === 'landmark'
 
 /** 카드/상세에서 쓰는 '구 동' 표기 */
 export const areaLabel = (r: Pick<Restaurant, 'district' | 'dong'>) =>

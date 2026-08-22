@@ -1,6 +1,7 @@
 import { Link } from 'react-router'
+import { formatDistance } from '../lib/geo'
 import { kakaoSearchUrl } from '../lib/kakao'
-import { areaLabel, hasCoords, type Restaurant } from '../types/restaurant'
+import { areaLabel, hasCoords, isApproximate, type Restaurant } from '../types/restaurant'
 
 /**
  * 지도 화면 아래 목록에 쓰는 카드 한 장.
@@ -13,10 +14,13 @@ export function RestaurantMapCard({
   restaurant,
   selected,
   onSelect,
+  distanceMeters,
 }: {
   restaurant: Restaurant
   selected: boolean
   onSelect: () => void
+  /** '내 주변'일 때만 준다 */
+  distanceMeters?: number
 }) {
   const area = areaLabel(restaurant)
   const located = hasCoords(restaurant)
@@ -44,13 +48,20 @@ export function RestaurantMapCard({
               <p className="mt-0.5 truncate text-sm text-brand-600">{restaurant.menu}</p>
             )}
           </div>
-          <span
-            className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${
-              restaurant.visited ? 'bg-brand-50 text-brand-600' : 'bg-stone-100 text-stone-500'
-            }`}
-          >
-            {restaurant.visited ? '가본 곳' : '가볼 곳'}
-          </span>
+          <div className="flex shrink-0 items-center gap-2">
+            {distanceMeters !== undefined && (
+              <span className="text-sm font-semibold text-brand-600">
+                {formatDistance(distanceMeters)}
+              </span>
+            )}
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs ${
+                restaurant.visited ? 'bg-brand-50 text-brand-600' : 'bg-stone-100 text-stone-500'
+              }`}
+            >
+              {restaurant.visited ? '가본 곳' : '가볼 곳'}
+            </span>
+          </div>
         </div>
 
         <p className="mt-2 truncate text-xs text-stone-500">
@@ -59,10 +70,19 @@ export function RestaurantMapCard({
       </button>
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
-        {!located && (
+        {!located ? (
           <span className="shrink-0 rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
             지도 위치 미등록
           </span>
+        ) : (
+          isApproximate(restaurant) && (
+            <span
+              className="shrink-0 rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-700"
+              title="메모의 랜드마크로 추정한 위치입니다. 상세에서 '주소 찾기'로 정확한 위치를 등록할 수 있습니다."
+            >
+              위치 대략
+            </span>
+          )
         )}
         {!located && (
           <a

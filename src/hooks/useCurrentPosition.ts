@@ -19,8 +19,11 @@ function reasonOf(error: GeolocationPositionError): string {
 /**
  * 현재 위치를 한 번 잡고, refresh()로 다시 잡는다.
  * useKakaoSdk와 같은 판별 유니온이라 호출부가 status로만 분기하면 된다.
+ *
+ * enabled=false 면 위치를 요청하지 않는다 — 지도 화면처럼 '내 주변'을 켤 때만
+ * 권한 창을 띄우고 싶은 경우에 쓴다. 상태는 'locating' 으로 남는다.
  */
-export function useCurrentPosition() {
+export function useCurrentPosition({ enabled = true }: { enabled?: boolean } = {}) {
   const [state, setState] = useState<PositionState>({ status: 'locating' })
 
   const locate = useCallback(() => {
@@ -59,7 +62,10 @@ export function useCurrentPosition() {
     }
   }, [])
 
-  useEffect(() => locate(), [locate])
+  useEffect(() => {
+    if (!enabled) return
+    return locate()
+  }, [enabled, locate])
 
   return { position: state, refresh: locate }
 }

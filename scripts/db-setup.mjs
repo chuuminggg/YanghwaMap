@@ -31,6 +31,9 @@ await sql`
   )
 `
 await sql`create index if not exists restaurants_area_idx on restaurants (district, dong)`
+// 좌표 출처. 'landmark'는 메모의 랜드마크로 자동 추정한 값이라 오차가 있어 화면에서 구분한다.
+// 빈 문자열은 '주소 찾기'로 사용자가 직접 고른 정확한 좌표.
+await sql`alter table restaurants add column if not exists coord_source text not null default ''`
 
 // 공중화장실 — 공공데이터라 읽기 전용이다.
 // 원본에 좌표가 없어(2025-02 제공 중단) lat/lng 는 지오코딩으로 나중에 채운다.

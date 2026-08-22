@@ -1,3 +1,4 @@
+import { haversineMeters, type LatLng } from '../lib/geo'
 import type { Restaurant } from '../types/restaurant'
 import type { VisitFilter } from './useFilterStore'
 
@@ -57,4 +58,31 @@ export function filterRestaurants(list: Restaurant[], f: FilterCriteria): Restau
       .toLowerCase()
       .includes(q)
   })
+}
+
+/**
+ * 기준점에서 가까운 순으로 정렬하고 거리를 붙인다. 좌표가 없는 항목은 뒤로 뺀다 —
+ * 거리를 모르는 걸 0으로 두면 가장 가까운 것처럼 보여 사용자를 잘못 이끈다.
+ */
+export function sortByDistance<T extends { lat?: number; lng?: number }>(
+  list: T[],
+  origin: LatLng,
+  radiusMeters: number | null,
+): { located: (T & { distanceMeters: number })[]; unlocated: T[] } {
+  const unlocated: T[] = []
+  const located: (T & { distanceMeters: number })[] = []
+
+  for (const item of list) {
+    if (typeof item.lat === 'number' && typeof item.lng === 'number') {
+      const distanceMeters = haversineMeters(origin, { lat: item.lat, lng: item.lng })
+      if (radiusMeters === null || distanceMeters <= radiusMeters) {
+        located.push({ ...item, distanceMeters })
+      }
+    } else {
+      unlocated.push(item)
+    }
+  }
+
+  located.sort((a, b) => a.distanceMeters - b.distanceMeters)
+  return { located, unlocated }
 }
