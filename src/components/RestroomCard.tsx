@@ -74,7 +74,7 @@ export function RestroomCard({
         {restroom.cctv && <span className={featureClass}>CCTV</span>}
         {!located && (
           <span className="shrink-0 rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
-            지도 위치 미등록
+            {restroom.geocodeFailed ? '좌표 찾기 실패' : '지도 위치 미등록'}
           </span>
         )}
 

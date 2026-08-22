@@ -5,10 +5,12 @@ import { RestroomCard } from '../components/RestroomCard'
 import { useCurrentPosition } from '../hooks/useCurrentPosition'
 import { useDistrictRestrooms, useRestroomDistricts } from '../hooks/useDistrictRestrooms'
 import { useNearbyRestrooms } from '../hooks/useNearbyRestrooms'
+import { geocodeRestroomDistrict } from '../lib/api'
 import { formatDistance } from '../lib/geo'
 import {
   hasCoords,
   isNearbyRestroom,
+  needsGeocoding,
   openingHours,
   type NearbyRestroom,
   type Restroom,
@@ -41,6 +43,8 @@ export function RestroomPage() {
   const [radius, setRadius] = useState<Radius>(500)
   const [district, setDistrict] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [geocoding, setGeocoding] = useState<{ done: number; failed: number } | null>(null)
+  const [geocodeError, setGeocodeError] = useState<string | null>(null)
   const listRef = useRef<HTMLUListElement>(null)
 
   const { position, refresh } = useCurrentPosition()
@@ -48,7 +52,9 @@ export function RestroomPage() {
 
   // 두 모드 모두 훅을 부르되, 활성 모드가 아니면 인자를 null 로 넘겨 요청 자체를 막는다
   const nearby = useNearbyRestrooms(mode === 'nearby' ? origin : null, radius)
-  const byDistrict = useDistrictRestrooms(mode === 'district' ? district : null)
+  const { state: byDistrict, refresh: refreshDistrict } = useDistrictRestrooms(
+    mode === 'district' ? district : null,
+  )
   const { districts, error: districtsError } = useRestroomDistricts()
 
   const active = mode === 'nearby' ? nearby : byDistrict
@@ -86,6 +92,36 @@ export function RestroomPage() {
   }
 
   const missing = items.length - markers.length
+  // '아직 안 해봄'과 '해봤지만 실패'를 나눠야 버튼이 헛돌지 않는다
+  const pending = items.filter(needsGeocoding).length
+  const failed = missing - pending
+
+  /**
+   * 좌표가 비어 있는 항목을 카카오 주소검색으로 채운다.
+   * 서버가 한 번에 한 배치만 처리하므로 remaining이 0이 될 때까지 이어서 부른다.
+   */
+  const loadCoords = async (retry = false) => {
+    if (!district || geocoding) return
+    setGeocoding({ done: 0, failed: 0 })
+
+    try {
+      for (let pass = 0; ; pass++) {
+        // retry 는 첫 호출에서만 — 실패 표시를 지운 뒤 이어지는 배치는 평소대로 돈다
+        const result = await geocodeRestroomDistrict(district, retry && pass === 0)
+        setGeocoding((prev) => ({
+          done: (prev?.done ?? 0) + result.located,
+          failed: (prev?.failed ?? 0) + result.failed,
+        }))
+        if (result.remaining === 0 || result.processed === 0) break
+      }
+      setGeocodeError(null)
+    } catch (error) {
+      setGeocodeError(error instanceof Error ? error.message : '좌표를 불러오지 못했습니다.')
+    } finally {
+      setGeocoding(null)
+      refreshDistrict()
+    }
+  }
 
   return (
     <div className="flex h-[calc(100dvh-57px)] flex-col">
@@ -126,12 +162,31 @@ export function RestroomPage() {
                 ))}
               </div>
             </div>
-            <p className="text-xs text-stone-500">
-              {districtsError ??
-                (district
-                  ? `${district} ${items.length}곳${missing > 0 ? ` · 좌표 미등록 ${missing}곳은 지도에 표시되지 않습니다` : ''}`
-                  : '자치구를 골라 주세요.')}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="min-w-0 flex-1 truncate text-xs text-stone-500">
+                {districtsError ??
+                  geocodeError ??
+                  (geocoding
+                    ? `좌표 불러오는 중… ${geocoding.done}곳 완료${geocoding.failed > 0 ? ` · 실패 ${geocoding.failed}` : ''}`
+                    : district
+                      ? `${district} ${items.length}곳${missing > 0 ? ` · 좌표 미등록 ${missing}곳${failed > 0 ? ` (실패 ${failed})` : ''}` : ''}`
+                      : '자치구를 골라 주세요.')}
+              </p>
+              {district && missing > 0 && (
+                <button
+                  type="button"
+                  onClick={() => loadCoords(pending === 0)}
+                  disabled={geocoding !== null}
+                  className="shrink-0 rounded-full border border-brand-300 bg-white px-3 py-1 text-xs text-brand-600 transition hover:border-brand-500 disabled:opacity-50"
+                >
+                  {geocoding
+                    ? '불러오는 중…'
+                    : pending > 0
+                      ? `좌표 불러오기 (${pending})`
+                      : `실패 ${failed}곳 다시 시도`}
+                </button>
+              )}
+            </div>
           </>
         ) : (
           <>

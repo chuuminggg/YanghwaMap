@@ -30,7 +30,7 @@ npm run dev                  # http://localhost:5173 (프런트 + /api 함께 �
 |---|---|---|
 | `VITE_KAKAO_MAP_APP_KEY` | 클라이언트 | 카카오맵 JavaScript 키 |
 | `DATABASE_URL` | 서버(`/api`) | Postgres 연결 문자열 |
-| `KAKAO_REST_API_KEY` | 빌드 스크립트 | 카카오 REST API 키. `npm run restrooms:geocode` 에서만 쓴다 (앱 실행에는 불필요) |
+| `KAKAO_REST_API_KEY` | 서버(`/api`) + 빌드 스크립트 | 카카오 REST API 키. 좌표 채우기에만 쓴다 (지도 표시에는 불필요) |
 | `APP_PASSWORD` | 서버(`/api`) | 진입 및 쓰기 비밀번호 |
 
 > `VITE_` 접두사가 붙은 값만 빌드 결과물에 포함된다. `DATABASE_URL`과 `APP_PASSWORD`는
@@ -152,8 +152,24 @@ npm run db:seed:restrooms -- --force
 
 **왜 지오코딩이 따로 필요한가** — 이 표준데이터는 2025년 2월부로 `WGS84 위도/경도` 제공이
 중단되어 CSV에 좌표 컬럼이 아예 없다. 그래서 `lat`/`lng` 는 nullable 이고, **좌표 없이도
-자치구별 목록은 그대로 동작한다.** 거리순 정렬과 지도 마커만 좌표를 필요로 하며,
-`npm run restrooms:geocode` 가 카카오 주소검색(도로명 → 지번 → 키워드 순)으로 채운다.
+자치구별 목록은 그대로 동작한다.** 거리순 정렬과 지도 마커만 좌표를 필요로 한다.
+
+좌표를 채우는 길은 두 가지고, 규칙(도로명 → 지번 → `구 + 화장실명` 키워드 순, 주소 정리,
+좌표 범위 검사)은 같다.
+
+| | 어디서 | 쓸 때 |
+|---|---|---|
+| `npm run restrooms:geocode` | 로컬 스크립트 → seed JSON | 전량 일괄. 결과를 커밋해 재사용 |
+| 화장실 탭 **좌표 불러오기** 버튼 | 서버 API → DB 직접 | 고른 자치구만. 새 데이터가 들어왔을 때 |
+
+앱 안에서 채울 때는 `지역구` 모드에서 구를 고르고 **좌표 불러오기** 를 누른다. 브라우저는
+카카오 REST API를 직접 부를 수 없어(CORS·키 노출) 서버가 대신 호출하며, 서버리스 실행 시간
+제한 때문에 한 번에 60건씩 처리하고 클라이언트가 남은 수가 0이 될 때까지 이어서 부른다.
+쓰기 요청이라 로그인이 필요하다.
+
+좌표를 못 찾은 행은 `geocode_failed_at` 에 표시해 다음 배치가 같은 행을 다시 붙잡지 않게 한다.
+목록에는 `좌표 찾기 실패` 로 구분해 보이고, 버튼이 **실패 N곳 다시 시도** 로 바뀐다
+(`?retry=1` — 표시를 지우고 재시도).
 
 **자치구는 어떻게 정하나** — 주소 문자열만으로는 부족하다. `용산구녹사평대로11길`처럼 붙여 쓴
 주소가 있고, 비탐욕 정규식은 `압구정로`를 `압구`로 잘라 낸다. 그래서 서울 25개 구 이름을
@@ -219,6 +235,7 @@ scripts/
 | `DELETE` | `/api/restaurants/:id` | 필요 | 삭제. 204 |
 | `GET` | `/api/restrooms` | 공개 | `?district=마포구` 자치구 목록 / `?lat=&lng=&radius=&limit=` 거리순 |
 | `GET` | `/api/restrooms/districts` | 공개 | 자치구 목록 + 건수 (`district`, `total`, `located`) |
+| `POST` | `/api/restrooms/geocode` | 필요 | `?district=마포구[&retry=1]` 좌표 채우기 (한 배치) |
 
 인증이 필요한 요청은 `x-app-password` 헤더를 보낸다. 오류는 `{ "error": "..." }` 형태이며
 그대로 화면에 표시되므로 사용자가 읽을 문장으로 쓴다.

@@ -88,6 +88,24 @@ export const listRestroomsByDistrict = (district: string) =>
 /** 자치구 칩에 쓰는 목록 + 건수 */
 export const listRestroomDistricts = () => request<DistrictCount[]>('/api/restrooms/districts')
 
+export type GeocodeResult = {
+  processed: number
+  located: number
+  failed: number
+  /** 아직 좌표가 없는 나머지 — 0이 될 때까지 반복 호출한다 */
+  remaining: number
+}
+
+/**
+ * 한 자치구의 좌표를 한 배치만 채운다. 서버 실행 시간 제한 때문에 나눠서 부른다.
+ * retry 를 주면 앞서 실패로 표시된 행도 다시 시도한다.
+ */
+export const geocodeRestroomDistrict = (district: string, retry = false) => {
+  const query = new URLSearchParams({ district })
+  if (retry) query.set('retry', '1')
+  return request<GeocodeResult>(`/api/restrooms/geocode?${query}`, { method: 'POST', auth: true })
+}
+
 /** 서버가 가진 APP_PASSWORD와 대조한다. 실패 사유는 ApiError 메시지에 담겨 온다. */
 export const verifyPassword = (candidate: string) =>
   request<{ ok: true }>('/api/login', { method: 'POST', body: { password: candidate } })

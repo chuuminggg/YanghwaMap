@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { listRestroomDistricts, listRestroomsByDistrict } from '../lib/api'
 import type { DistrictCount, Restroom } from '../types/restroom'
 
@@ -31,29 +31,35 @@ export function useRestroomDistricts() {
 }
 
 /** 고른 자치구의 화장실 전체. useNearbyRestrooms와 같은 요청 번호 방식으로 늦은 응답을 버린다. */
-export function useDistrictRestrooms(district: string | null): DistrictListState {
+export function useDistrictRestrooms(district: string | null) {
   const [state, setState] = useState<DistrictListState>({ status: 'idle' })
   const requestId = useRef(0)
 
-  useEffect(() => {
-    if (!district) {
-      setState({ status: 'idle' })
-      return
-    }
+  const load = useCallback(
+    (options: { quiet?: boolean } = {}) => {
+      if (!district) {
+        setState({ status: 'idle' })
+        return
+      }
 
-    const id = ++requestId.current
-    setState({ status: 'loading' })
+      const id = ++requestId.current
+      // 좌표를 채운 뒤 다시 부를 때는 목록을 로딩 화면으로 되돌리지 않는다
+      if (!options.quiet) setState({ status: 'loading' })
 
-    listRestroomsByDistrict(district).then(
-      (items) => {
-        if (id === requestId.current) setState({ status: 'ready', items })
-      },
-      (error: unknown) => {
-        if (id !== requestId.current) return
-        setState({ status: 'error', message: message(error, '목록을 불러오지 못했습니다.') })
-      },
-    )
-  }, [district])
+      listRestroomsByDistrict(district).then(
+        (items) => {
+          if (id === requestId.current) setState({ status: 'ready', items })
+        },
+        (error: unknown) => {
+          if (id !== requestId.current) return
+          setState({ status: 'error', message: message(error, '목록을 불러오지 못했습니다.') })
+        },
+      )
+    },
+    [district],
+  )
 
-  return state
+  useEffect(() => load(), [load])
+
+  return { state, refresh: () => load({ quiet: true }) }
 }

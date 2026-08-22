@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { apiDevPlugin } from './scripts/vite-api-plugin.ts'
 
 /** 개발 서버의 /api 핸들러가 읽는 서버 전용 변수들 (클라이언트 번들에는 들어가지 않는다) */
-const SERVER_ENV_KEYS = ['DATABASE_URL', 'POSTGRES_URL', 'APP_PASSWORD']
+const SERVER_ENV_KEYS = ['DATABASE_URL', 'POSTGRES_URL', 'APP_PASSWORD', 'KAKAO_REST_API_KEY']
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {

@@ -31,10 +31,15 @@ export type Restroom = {
   emergencyBell?: boolean
   cctv?: boolean
   dataDate: string
+  /** 주소로 좌표를 찾아봤지만 실패한 항목. 자동 배치는 이 행을 건너뛴다. */
+  geocodeFailed?: boolean
 }
 
 /** 서버가 haversine으로 계산해 붙여 주는 거리 (미터) */
 export type NearbyRestroom = Restroom & { distanceMeters: number }
+
+/** 아직 좌표를 시도해 보지 않은 항목 — '좌표 불러오기'가 처리할 대상 */
+export const needsGeocoding = (r: Restroom) => !hasCoords(r) && !r.geocodeFailed
 
 /** 거리순 목록에서 왔는지 — 지역구 목록에는 distanceMeters 가 없다 */
 export const isNearbyRestroom = (r: Restroom | NearbyRestroom): r is NearbyRestroom =>

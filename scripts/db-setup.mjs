@@ -63,6 +63,8 @@ await sql`
 await sql`alter table restrooms alter column lat drop not null`
 await sql`alter table restrooms alter column lng drop not null`
 await sql`alter table restrooms add column if not exists district text not null default ''`
+// 지오코딩에 실패한 행을 표시해 다음 배치가 같은 행을 다시 붙잡지 않게 한다
+await sql`alter table restrooms add column if not exists geocode_failed_at timestamptz`
 
 // 근처 조회는 bbox로 먼저 자르므로 (lat, lng) 인덱스가 그대로 쓰인다
 await sql`create index if not exists restrooms_coord_idx on restrooms (lat, lng)`
