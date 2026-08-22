@@ -56,6 +56,12 @@ const cleanAddress = (raw) =>
     .replace(/\s+/g, ' ')
     .trim()
 
+/**
+ * 시도 이름만 남은 주소('서울특별시')로는 검색하면 안 된다.
+ * 카카오가 시청 근처 아무 점이나 돌려줘서 엉뚱한 좌표가 박힌다.
+ */
+const searchable = (address) => address.replace(/^\S+(?:특별시|광역시|특별자치시|특별자치도|도)\s*/, '').length > 0
+
 /** '서울특별시 마포구 방울내로 19' -> '서울특별시 마포구' (키워드 검색 보조용) */
 const districtOf = (raw) => {
   const m = (raw ?? '').match(/^(\S+(?:시|도))\s+(\S+(?:시|군|구))/)
@@ -67,15 +73,18 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 let calls = 0
 
+/** 초당 제한을 다 쓰고도 못 받았을 때. '결과 없음'과 구분해야 영구 실패로 오기록하지 않는다. */
+const RATE_LIMITED = Symbol('rate-limited')
+
 async function kakao(path, query) {
   const url = `https://dapi.kakao.com/v2/local/${path}?query=${encodeURIComponent(query)}&size=1`
 
-  for (let attempt = 0; attempt < 4; attempt++) {
+  for (let attempt = 0; attempt < 6; attempt++) {
     calls++
     const response = await fetch(url, { headers: { Authorization: `KakaoAK ${KEY}` } })
 
     if (response.status === 429) {
-      await sleep(1000 * (attempt + 1)) // 쿼터/초당 제한 — 물러섰다 재시도
+      await sleep(500 * 2 ** attempt) // 지수 백오프: 0.5s, 1s, 2s, 4s, 8s, 16s
       continue
     }
     if (response.status === 401 || response.status === 403) {
@@ -94,30 +103,41 @@ async function kakao(path, query) {
     const lng = Number(doc.x)
     return inKorea(lat, lng) ? { lat, lng } : null
   }
-  return null
+  return RATE_LIMITED
 }
 
 /** 도로명주소 -> 지번주소 -> '구 + 화장실명' 키워드 순으로 시도한다. */
 async function geocode(item) {
+  let throttled = false
+  const attempt = async (path, query, source) => {
+    const hit = await kakao(path, query)
+    if (hit === RATE_LIMITED) {
+      throttled = true
+      return null
+    }
+    return hit ? { ...hit, source } : null
+  }
+
   const road = cleanAddress(item.roadAddress)
-  if (road) {
-    const hit = await kakao('search/address.json', road)
-    if (hit) return { ...hit, source: 'road' }
+  if (road && searchable(road)) {
+    const hit = await attempt('search/address.json', road, 'road')
+    if (hit) return hit
   }
 
   const jibun = cleanAddress(item.jibunAddress)
-  if (jibun && jibun !== road) {
-    const hit = await kakao('search/address.json', jibun)
-    if (hit) return { ...hit, source: 'jibun' }
+  if (jibun && jibun !== road && searchable(jibun)) {
+    const hit = await attempt('search/address.json', jibun, 'jibun')
+    if (hit) return hit
   }
 
-  const district = districtOf(item.roadAddress || item.jibunAddress)
+  const district = item.district || districtOf(item.roadAddress || item.jibunAddress)
   if (district && item.name) {
-    const hit = await kakao('search/keyword.json', `${district} ${item.name}`)
-    if (hit) return { ...hit, source: 'keyword' }
+    const hit = await attempt('search/keyword.json', `${district} ${item.name}`, 'keyword')
+    if (hit) return hit
   }
 
-  return null
+  // 제한에 걸려 못 받은 것뿐이면 실패로 굳히지 않고 다음 실행으로 넘긴다
+  return throttled ? RATE_LIMITED : null
 }
 
 /* ---------- 실행 ---------- */
@@ -133,7 +153,7 @@ if (todo.length === 0) {
 
 const save = () => writeFileSync(FILE, `${JSON.stringify(items, null, 2)}\n`, 'utf8')
 
-const stats = { road: 0, jibun: 0, keyword: 0, failed: 0 }
+const stats = { road: 0, jibun: 0, keyword: 0, failed: 0, throttled: 0 }
 let done = 0
 let cursor = 0
 
@@ -142,7 +162,10 @@ async function worker() {
     const item = todo[cursor++]
     try {
       const hit = await geocode(item)
-      if (hit) {
+      if (hit === RATE_LIMITED) {
+        // 좌표도 실패 표시도 남기지 않는다 — 다시 실행하면 이 행부터 이어간다
+        stats.throttled++
+      } else if (hit) {
         item.lat = hit.lat
         item.lng = hit.lng
         item.geocodedFrom = hit.source
@@ -178,6 +201,7 @@ console.log(`
   지번      ${stats.jibun}
   키워드    ${stats.keyword}
   실패      ${stats.failed}
+  제한 보류  ${stats.throttled}${stats.throttled > 0 ? '  <- 초당 제한. --concurrency 를 낮춰 다시 실행하면 이어서 채운다' : ''}
 카카오 호출 ${calls}회
 
 다음 단계: npm run db:setup && npm run db:seed:restrooms`)

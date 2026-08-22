@@ -20,6 +20,9 @@ const RADIUS_OPTIONS = [300, 500, 1000] as const
 type Radius = (typeof RADIUS_OPTIONS)[number]
 type Mode = 'district' | 'nearby'
 
+/** 한 구가 최대 600건이라 60건씩 처리하면 10번이면 끝난다. 폭주 방지용 상한. */
+const MAX_PASSES = 20
+
 /** 로딩·에러일 때 매 렌더 새 배열을 만들지 않도록 고정한다 (KakaoMap이 markers 참조로 다시 그린다) */
 const NO_ITEMS: (Restroom | NearbyRestroom)[] = []
 
@@ -105,7 +108,8 @@ export function RestroomPage() {
     setGeocoding({ done: 0, failed: 0 })
 
     try {
-      for (let pass = 0; ; pass++) {
+      let stalled = 0
+      for (let pass = 0; pass < MAX_PASSES; pass++) {
         // retry 는 첫 호출에서만 — 실패 표시를 지운 뒤 이어지는 배치는 평소대로 돈다
         const result = await geocodeRestroomDistrict(district, retry && pass === 0)
         setGeocoding((prev) => ({
@@ -113,6 +117,13 @@ export function RestroomPage() {
           failed: (prev?.failed ?? 0) + result.failed,
         }))
         if (result.remaining === 0 || result.processed === 0) break
+
+        // 전부 초당 제한에 걸리면 remaining 이 줄지 않는다. 무한 반복을 막는다.
+        stalled = result.located + result.failed === 0 ? stalled + 1 : 0
+        if (stalled >= 2) {
+          setGeocodeError('카카오 요청이 몰려 잠시 멈췄습니다. 잠깐 뒤에 다시 눌러 주세요.')
+          return
+        }
       }
       setGeocodeError(null)
     } catch (error) {

@@ -92,6 +92,8 @@ export type GeocodeResult = {
   processed: number
   located: number
   failed: number
+  /** 초당 제한에 걸려 건너뛴 수. 실패가 아니라 다음 호출에서 다시 시도된다. */
+  throttled: number
   /** 아직 좌표가 없는 나머지 — 0이 될 때까지 반복 호출한다 */
   remaining: number
 }

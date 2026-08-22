@@ -10,7 +10,9 @@ import { db, InvalidInputError } from './db.js'
 
 /** 서버리스 실행 시간(Hobby 기본 10초) 안에 끝나도록 한 번에 처리할 양 */
 export const BATCH_SIZE = 60
-const CONCURRENCY = 6
+// 카카오 초당 제한에 덜 부딪히도록 낮게 잡는다. 제한에 걸린 행을 실패로 굳히면
+// geocode_failed_at 이 박혀 다음 배치가 건너뛰므로, 여기서는 보수적인 편이 낫다.
+const CONCURRENCY = 3
 
 export class MissingKakaoKeyError extends Error {
   constructor() {
@@ -32,18 +34,29 @@ const inKorea = (lat: number, lng: number) => lat >= 33 && lat <= 39 && lng >= 1
 const cleanAddress = (raw: string) =>
   raw.split(',')[0].replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim()
 
+/**
+ * 시도 이름만 남은 주소('서울특별시')로는 검색하면 안 된다.
+ * 카카오가 아무 점이나 돌려줘서 엉뚱한 좌표가 박힌다.
+ */
+const searchable = (address: string) =>
+  address.replace(/^\S+(?:특별시|광역시|특별자치시|특별자치도|도)\s*/, '').length > 0
+
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 type Hit = { lat: number; lng: number; source: 'road' | 'jibun' | 'keyword' }
 
-async function ask(key: string, path: string, query: string): Promise<{ lat: number; lng: number } | null> {
+/** 초당 제한을 다 쓰고도 못 받았을 때. '결과 없음'과 구분해야 영구 실패로 오기록하지 않는다. */
+const RATE_LIMITED = Symbol('rate-limited')
+type Answer = { lat: number; lng: number } | null | typeof RATE_LIMITED
+
+async function ask(key: string, path: string, query: string): Promise<Answer> {
   const url = `https://dapi.kakao.com/v2/local/${path}?query=${encodeURIComponent(query)}&size=1`
 
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 5; attempt++) {
     const response = await fetch(url, { headers: { Authorization: `KakaoAK ${key}` } })
 
     if (response.status === 429) {
-      await sleep(300 * (attempt + 1)) // 초당 제한 — 물러섰다 재시도
+      await sleep(300 * 2 ** attempt) // 지수 백오프: 0.3s, 0.6s, 1.2s, 2.4s, 4.8s
       continue
     }
     if (response.status === 401 || response.status === 403) {
@@ -62,37 +75,50 @@ async function ask(key: string, path: string, query: string): Promise<{ lat: num
     const lng = Number(doc.x)
     return inKorea(lat, lng) ? { lat, lng } : null
   }
-  return null
+  return RATE_LIMITED
 }
 
 type Target = { id: string; name: string; road_address: string; jibun_address: string; district: string }
 
 /** 도로명주소 -> 지번주소 -> '구 + 화장실명' 키워드 순으로 시도한다. */
-async function geocodeOne(key: string, row: Target): Promise<Hit | null> {
+async function geocodeOne(key: string, row: Target): Promise<Hit | null | typeof RATE_LIMITED> {
+  let throttled = false
+  const attempt = async (path: string, query: string, source: Hit['source']) => {
+    const hit = await ask(key, path, query)
+    if (hit === RATE_LIMITED) {
+      throttled = true
+      return null
+    }
+    return hit ? { ...hit, source } : null
+  }
+
   const road = cleanAddress(row.road_address)
-  if (road) {
-    const hit = await ask(key, 'search/address.json', road)
-    if (hit) return { ...hit, source: 'road' }
+  if (road && searchable(road)) {
+    const hit = await attempt('search/address.json', road, 'road')
+    if (hit) return hit
   }
 
   const jibun = cleanAddress(row.jibun_address)
-  if (jibun && jibun !== road) {
-    const hit = await ask(key, 'search/address.json', jibun)
-    if (hit) return { ...hit, source: 'jibun' }
+  if (jibun && jibun !== road && searchable(jibun)) {
+    const hit = await attempt('search/address.json', jibun, 'jibun')
+    if (hit) return hit
   }
 
   if (row.district && row.name) {
-    const hit = await ask(key, 'search/keyword.json', `${row.district} ${row.name}`)
-    if (hit) return { ...hit, source: 'keyword' }
+    const hit = await attempt('search/keyword.json', `${row.district} ${row.name}`, 'keyword')
+    if (hit) return hit
   }
 
-  return null
+  // 제한에 걸려 못 받은 것뿐이면 실패로 굳히지 않는다 — 다음 배치가 다시 집는다
+  return throttled ? RATE_LIMITED : null
 }
 
 export type GeocodeResult = {
   processed: number
   located: number
   failed: number
+  /** 초당 제한에 걸려 이번엔 건너뛴 수. 실패가 아니라 다음 배치에서 다시 시도된다. */
+  throttled: number
   /** 이 구에 아직 좌표가 없는 나머지 — 0이 될 때까지 클라이언트가 다시 부른다 */
   remaining: number
 }
@@ -128,17 +154,21 @@ export async function geocodeDistrict(district: string, retry = false): Promise<
 
   let located = 0
   let failed = 0
+  let throttled = 0
   let cursor = 0
 
   const worker = async () => {
     while (cursor < rows.length) {
       const row = rows[cursor++]
       const hit = await geocodeOne(key, row)
-      if (hit) {
+      if (hit === RATE_LIMITED) {
+        // 좌표도 실패 표시도 남기지 않는다 — 다음 배치가 이 행을 다시 집는다
+        throttled++
+      } else if (hit) {
         await sql.query('update restrooms set lat = $2, lng = $3 where id = $1', [row.id, hit.lat, hit.lng])
         located++
       } else {
-        // 다음 배치에서 같은 행을 또 붙잡지 않도록 표시한다
+        // 주소로 정말 못 찾은 행. 다음 배치가 또 붙잡지 않도록 표시한다.
         await sql.query('update restrooms set geocode_failed_at = now() where id = $1', [row.id])
         failed++
       }
@@ -154,5 +184,5 @@ export async function geocodeDistrict(district: string, retry = false): Promise<
     [district],
   )) as { remaining: number }[]
 
-  return { processed: rows.length, located, failed, remaining }
+  return { processed: rows.length, located, failed, throttled, remaining }
 }
