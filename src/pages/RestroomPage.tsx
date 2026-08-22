@@ -18,7 +18,7 @@ import {
 
 const RADIUS_OPTIONS = [300, 500, 1000] as const
 type Radius = (typeof RADIUS_OPTIONS)[number]
-type Mode = 'district' | 'nearby'
+type Mode = 'nearby' | 'district'
 
 /** 한 구가 최대 600건이라 60건씩 처리하면 10번이면 끝난다. 폭주 방지용 상한. */
 const MAX_PASSES = 20
@@ -42,7 +42,8 @@ const modeClass = (active: boolean) =>
 
 /** 공중화장실을 자치구별(이름순) 또는 현재 위치 기준(거리순)으로 보여 준다. */
 export function RestroomPage() {
-  const [mode, setMode] = useState<Mode>('district')
+  // 화장실이 급해 들어오는 화면이므로 현재 위치 기준이 기본이다
+  const [mode, setMode] = useState<Mode>('nearby')
   const [radius, setRadius] = useState<Radius>(500)
   const [district, setDistrict] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -140,17 +141,17 @@ export function RestroomPage() {
         <div className="flex rounded-lg bg-stone-100 p-1">
           <button
             type="button"
-            onClick={() => switchMode('district')}
-            className={modeClass(mode === 'district')}
-          >
-            지역구
-          </button>
-          <button
-            type="button"
             onClick={() => switchMode('nearby')}
             className={modeClass(mode === 'nearby')}
           >
             내 주변
+          </button>
+          <button
+            type="button"
+            onClick={() => switchMode('district')}
+            className={modeClass(mode === 'district')}
+          >
+            지역구
           </button>
         </div>
 
