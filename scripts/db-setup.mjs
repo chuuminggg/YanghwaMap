@@ -56,7 +56,8 @@ await sql`
     diaper_table     boolean,
     emergency_bell   boolean,
     cctv             boolean,
-    data_date        text not null default ''
+    data_date        text not null default '',
+    coord_source     text not null default ''
   )
 `
 // 좌표를 not null 로 만들었던 초기 버전에서 올라오는 DB를 맞춰 준다 (여러 번 실행해도 안전)
@@ -65,6 +66,8 @@ await sql`alter table restrooms alter column lng drop not null`
 await sql`alter table restrooms add column if not exists district text not null default ''`
 // 지오코딩에 실패한 행을 표시해 다음 배치가 같은 행을 다시 붙잡지 않게 한다
 await sql`alter table restrooms add column if not exists geocode_failed_at timestamptz`
+// 좌표를 어떻게 얻었는지. 'venue'는 시설 대표 좌표라 오차가 커서 화면에서 구분해 보여 준다.
+await sql`alter table restrooms add column if not exists coord_source text not null default ''`
 
 // 근처 조회는 bbox로 먼저 자르므로 (lat, lng) 인덱스가 그대로 쓰인다
 await sql`create index if not exists restrooms_coord_idx on restrooms (lat, lng)`

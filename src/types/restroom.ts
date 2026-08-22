@@ -33,10 +33,18 @@ export type Restroom = {
   dataDate: string
   /** 주소로 좌표를 찾아봤지만 실패한 항목. 자동 배치는 이 행을 건너뛴다. */
   geocodeFailed?: boolean
+  /**
+   * 좌표를 얻은 경로. 'venue'는 화장실이 아니라 시설 대표 지점이라 수백 m 어긋날 수 있어
+   * 화면에서 따로 표시한다.
+   */
+  coordSource?: 'road' | 'jibun' | 'keyword' | 'venue'
 }
 
 /** 서버가 haversine으로 계산해 붙여 주는 거리 (미터) */
 export type NearbyRestroom = Restroom & { distanceMeters: number }
+
+/** 시설 대표 좌표라 실제 화장실 위치와 어긋날 수 있는 항목 */
+export const isApproximate = (r: Restroom) => r.coordSource === 'venue'
 
 /** 아직 좌표를 시도해 보지 않은 항목 — '좌표 불러오기'가 처리할 대상 */
 export const needsGeocoding = (r: Restroom) => !hasCoords(r) && !r.geocodeFailed

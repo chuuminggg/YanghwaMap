@@ -2,6 +2,7 @@ import { formatDistance } from '../lib/geo'
 import { kakaoSearchUrl } from '../lib/kakao'
 import {
   hasCoords,
+  isApproximate,
   isNearbyRestroom,
   openingHours,
   restroomAddress,
@@ -72,10 +73,19 @@ export function RestroomCard({
         {restroom.diaperTable && <span className={featureClass}>기저귀교환대</span>}
         {restroom.emergencyBell && <span className={featureClass}>비상벨</span>}
         {restroom.cctv && <span className={featureClass}>CCTV</span>}
-        {!located && (
+        {!located ? (
           <span className="shrink-0 rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
             {restroom.geocodeFailed ? '좌표 찾기 실패' : '지도 위치 미등록'}
           </span>
+        ) : (
+          isApproximate(restroom) && (
+            <span
+              className="shrink-0 rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-700"
+              title="주소로 정확한 위치를 찾지 못해 시설 대표 좌표를 씁니다. 실제 화장실은 조금 떨어져 있을 수 있습니다."
+            >
+              위치 대략
+            </span>
+          )
         )}
 
         <a

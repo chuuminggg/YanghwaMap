@@ -40,6 +40,7 @@ const COLUMNS = [
   'code', 'name', 'type', 'district', 'road_address', 'jibun_address', 'lat', 'lng',
   'manager', 'phone', 'open_time', 'open_time_detail',
   'men_toilets', 'women_toilets', 'accessible', 'diaper_table', 'emergency_bell', 'cctv', 'data_date',
+  'coord_source',
 ]
 
 const toValues = (r) => [
@@ -48,6 +49,7 @@ const toValues = (r) => [
   r.manager ?? '', r.phone ?? '', r.openTime ?? '', r.openTimeDetail ?? '',
   r.menToilets ?? 0, r.womenToilets ?? 0, r.accessible ?? false,
   r.diaperTable ?? null, r.emergencyBell ?? null, r.cctv ?? null, r.dataDate ?? '',
+  r.geocodedFrom === 'failed' ? '' : (r.geocodedFrom ?? ''),
 ]
 
 // 수천 건이라 행 단위 왕복 대신 배치로 넣는다 (Neon HTTP 드라이버는 요청당 왕복 1회)

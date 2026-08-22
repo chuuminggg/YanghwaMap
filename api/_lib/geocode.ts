@@ -41,9 +41,17 @@ const cleanAddress = (raw: string) =>
 const searchable = (address: string) =>
   address.replace(/^\S+(?:특별시|광역시|특별자치시|특별자치도|도)\s*/, '').length > 0
 
+/**
+ * '효창운동장화장실' -> '효창운동장'
+ * 공원·운동장 안 화장실은 정식 건물번호가 없어 주소검색이 통하지 않는다. 시설을 먼저 찾되,
+ * 얻은 좌표는 화장실이 아니라 시설 대표 지점이라 오차가 크다 - source 로 구분한다.
+ */
+const venueName = (name: string) =>
+  name.replace(/\([^)]*\)/g, ' ').replace(/(공중|개방|간이|이동)?화장실/g, ' ').replace(/\s+/g, ' ').trim()
+
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-type Hit = { lat: number; lng: number; source: 'road' | 'jibun' | 'keyword' }
+type Hit = { lat: number; lng: number; source: 'road' | 'jibun' | 'keyword' | 'venue' }
 
 /** 초당 제한을 다 쓰고도 못 받았을 때. '결과 없음'과 구분해야 영구 실패로 오기록하지 않는다. */
 const RATE_LIMITED = Symbol('rate-limited')
@@ -107,6 +115,13 @@ async function geocodeOne(key: string, row: Target): Promise<Hit | null | typeof
   if (row.district && row.name) {
     const hit = await attempt('search/keyword.json', `${row.district} ${row.name}`, 'keyword')
     if (hit) return hit
+
+    // 마지막 수단: 시설명만으로 찾는다
+    const venue = venueName(row.name)
+    if (venue.length >= 2 && venue !== row.name) {
+      const byVenue = await attempt('search/keyword.json', `${row.district} ${venue}`, 'venue')
+      if (byVenue) return byVenue
+    }
   }
 
   // 제한에 걸려 못 받은 것뿐이면 실패로 굳히지 않는다 — 다음 배치가 다시 집는다
@@ -165,7 +180,12 @@ export async function geocodeDistrict(district: string, retry = false): Promise<
         // 좌표도 실패 표시도 남기지 않는다 — 다음 배치가 이 행을 다시 집는다
         throttled++
       } else if (hit) {
-        await sql.query('update restrooms set lat = $2, lng = $3 where id = $1', [row.id, hit.lat, hit.lng])
+        await sql.query('update restrooms set lat = $2, lng = $3, coord_source = $4 where id = $1', [
+          row.id,
+          hit.lat,
+          hit.lng,
+          hit.source,
+        ])
         located++
       } else {
         // 주소로 정말 못 찾은 행. 다음 배치가 또 붙잡지 않도록 표시한다.

@@ -62,6 +62,20 @@ const cleanAddress = (raw) =>
  */
 const searchable = (address) => address.replace(/^\S+(?:특별시|광역시|특별자치시|특별자치도|도)\s*/, '').length > 0
 
+/**
+ * '효창운동장화장실' -> '효창운동장', '봉화산근린공원(유아숲체험장)' -> '봉화산근린공원'
+ *
+ * 공원·운동장 안 화장실은 정식 건물번호가 없어 주소검색이 통하지 않는다. 시설명 자체도
+ * '...화장실' 형태라 POI로 안 잡히므로, 접미사와 괄호를 떼어 시설을 먼저 찾는다.
+ * 다만 이렇게 얻은 좌표는 화장실이 아니라 시설 대표 지점이라 오차가 크다 - source 로 구분한다.
+ */
+const venueName = (name) =>
+  (name ?? '')
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/(공중|개방|간이|이동)?화장실/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
 /** '서울특별시 마포구 방울내로 19' -> '서울특별시 마포구' (키워드 검색 보조용) */
 const districtOf = (raw) => {
   const m = (raw ?? '').match(/^(\S+(?:시|도))\s+(\S+(?:시|군|구))/)
@@ -134,6 +148,13 @@ async function geocode(item) {
   if (district && item.name) {
     const hit = await attempt('search/keyword.json', `${district} ${item.name}`, 'keyword')
     if (hit) return hit
+
+    // 마지막 수단: 시설명만으로 찾는다. 좌표가 시설 대표 지점이라 정확도가 낮다.
+    const venue = venueName(item.name)
+    if (venue.length >= 2 && venue !== item.name) {
+      const byVenue = await attempt('search/keyword.json', `${district} ${venue}`, 'venue')
+      if (byVenue) return byVenue
+    }
   }
 
   // 제한에 걸려 못 받은 것뿐이면 실패로 굳히지 않고 다음 실행으로 넘긴다
@@ -153,7 +174,7 @@ if (todo.length === 0) {
 
 const save = () => writeFileSync(FILE, `${JSON.stringify(items, null, 2)}\n`, 'utf8')
 
-const stats = { road: 0, jibun: 0, keyword: 0, failed: 0, throttled: 0 }
+const stats = { road: 0, jibun: 0, keyword: 0, venue: 0, failed: 0, throttled: 0 }
 let done = 0
 let cursor = 0
 
@@ -200,6 +221,7 @@ console.log(`
   도로명    ${stats.road}
   지번      ${stats.jibun}
   키워드    ${stats.keyword}
+  시설명    ${stats.venue}${stats.venue > 0 ? '  <- 시설 대표 좌표라 오차가 크다' : ''}
   실패      ${stats.failed}
   제한 보류  ${stats.throttled}${stats.throttled > 0 ? '  <- 초당 제한. --concurrency 를 낮춰 다시 실행하면 이어서 채운다' : ''}
 카카오 호출 ${calls}회

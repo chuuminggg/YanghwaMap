@@ -74,6 +74,7 @@ type Row = {
   emergency_bell: boolean | null
   cctv: boolean | null
   data_date: string
+  coord_source: string
   geocode_failed_at: Date | string | null
   /** 근처 조회에서만 붙는다 */
   distance_m?: number
@@ -101,6 +102,7 @@ const toRestroom = (row: Row): Restroom => ({
   emergencyBell: row.emergency_bell ?? undefined,
   cctv: row.cctv ?? undefined,
   dataDate: row.data_date,
+  coordSource: (row.coord_source || undefined) as Restroom['coordSource'],
   // 좌표를 못 찾은 행. '아직 안 해봄'과 '해봤지만 실패'를 화면에서 구분하려고 함께 내린다.
   geocodeFailed: row.geocode_failed_at !== null,
 })

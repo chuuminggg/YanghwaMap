@@ -1789,9 +1789,9 @@
     "emergencyBell": true,
     "cctv": true,
     "dataDate": "2024-12-31",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.5911687764303,
+    "lng": 126.990122039181,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202530000000100942",
@@ -8712,9 +8712,9 @@
     "emergencyBell": false,
     "cctv": false,
     "dataDate": "2023-10-31",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.54352897157971,
+    "lng": 126.96121035015936,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202430200000100062",
@@ -9563,9 +9563,9 @@
     "emergencyBell": false,
     "cctv": false,
     "dataDate": "2023-10-31",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.54352897157971,
+    "lng": 126.96121035015936,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202430200000100089",
@@ -11081,9 +11081,9 @@
     "emergencyBell": true,
     "cctv": true,
     "dataDate": "2023-10-31",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.5204094106495,
+    "lng": 126.975045636157,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202430200000100021",
@@ -11150,9 +11150,9 @@
     "emergencyBell": false,
     "cctv": false,
     "dataDate": "2023-10-31",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.54352897157971,
+    "lng": 126.96121035015936,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202430200000100027",
@@ -11771,9 +11771,9 @@
     "emergencyBell": false,
     "cctv": false,
     "dataDate": "2024-05-24",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.5213778760859,
+    "lng": 126.996708153311,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202430200000100026",
@@ -12024,9 +12024,9 @@
     "emergencyBell": false,
     "cctv": false,
     "dataDate": "2023-10-31",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.5213778760859,
+    "lng": 126.996708153311,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202330200000100504",
@@ -13519,9 +13519,9 @@
     "emergencyBell": false,
     "cctv": false,
     "dataDate": "2023-10-31",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.54352897157971,
+    "lng": 126.96121035015936,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202430200000100122",
@@ -16256,9 +16256,9 @@
     "emergencyBell": true,
     "cctv": false,
     "dataDate": "2023-12-20",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.5661389565959,
+    "lng": 127.042984855663,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202430300000100121",
@@ -20465,9 +20465,9 @@
     "emergencyBell": true,
     "cctv": false,
     "dataDate": "2022-01-21",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.5463810005629,
+    "lng": 127.067895786492,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202230400000100881",
@@ -21086,9 +21086,9 @@
     "emergencyBell": true,
     "cctv": false,
     "dataDate": "2022-01-21",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.52966146352903,
+    "lng": 127.07761018399374,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202230400000100737",
@@ -30585,9 +30585,9 @@
     "emergencyBell": false,
     "cctv": false,
     "dataDate": "2024-07-29",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.5711282880022,
+    "lng": 127.095764720133,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202430600000100263",
@@ -31022,9 +31022,9 @@
     "emergencyBell": true,
     "cctv": false,
     "dataDate": "2024-07-29",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.60950096228712,
+    "lng": 127.08720763835336,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202430600000100344",
@@ -31413,9 +31413,9 @@
     "emergencyBell": true,
     "cctv": false,
     "dataDate": "2024-07-29",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.587684205227085,
+    "lng": 127.0988508494438,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202430600000100221",
@@ -32310,9 +32310,9 @@
     "emergencyBell": false,
     "cctv": false,
     "dataDate": "2024-07-29",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.6027385219237,
+    "lng": 127.081626960818,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202430600000100225",
@@ -32839,9 +32839,9 @@
     "emergencyBell": false,
     "cctv": false,
     "dataDate": "2024-07-29",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.5711282880022,
+    "lng": 127.095764720133,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202430600000100329",
@@ -33069,9 +33069,9 @@
     "emergencyBell": true,
     "cctv": false,
     "dataDate": "2024-07-29",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.60950096228712,
+    "lng": 127.08720763835336,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202430600000100338",
@@ -33644,9 +33644,9 @@
     "emergencyBell": false,
     "cctv": false,
     "dataDate": "2024-07-29",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.60857753365413,
+    "lng": 127.08709217385757,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202430600000100255",
@@ -38957,9 +38957,9 @@
     "emergencyBell": true,
     "cctv": false,
     "dataDate": "2024-05-03",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.632338953898255,
+    "lng": 127.03270791610089,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202430800000100202",
@@ -48502,9 +48502,9 @@
     "emergencyBell": false,
     "cctv": false,
     "dataDate": "2024-05-27",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.6550217260003,
+    "lng": 127.062677410167,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202431000000100867",
@@ -60554,9 +60554,9 @@
     "emergencyBell": true,
     "cctv": true,
     "dataDate": "2023-03-20",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.5529241094964,
+    "lng": 126.950318572107,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202231300000100362",
@@ -65246,9 +65246,9 @@
     "emergencyBell": true,
     "cctv": true,
     "dataDate": "2024-05-20",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.5081073985697,
+    "lng": 126.869019038237,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202431400000103563",
@@ -71387,9 +71387,9 @@
     "emergencyBell": true,
     "cctv": true,
     "dataDate": "2024-05-20",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.5081073985697,
+    "lng": 126.869019038237,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202431400000104185",
@@ -75458,9 +75458,9 @@
     "emergencyBell": true,
     "cctv": true,
     "dataDate": "2024-05-20",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.5081073985697,
+    "lng": 126.869019038237,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202431400000103737",
@@ -77298,9 +77298,9 @@
     "emergencyBell": true,
     "cctv": true,
     "dataDate": "2025-01-01",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.56022863776301,
+    "lng": 126.82469691791624,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202531500000100275",
@@ -78609,9 +78609,9 @@
     "emergencyBell": true,
     "cctv": true,
     "dataDate": "2025-01-01",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.583827659718864,
+    "lng": 126.81710026603032,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202531500000100424",
@@ -83186,9 +83186,9 @@
     "emergencyBell": true,
     "cctv": true,
     "dataDate": "2024-12-06",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.48685558277736,
+    "lng": 126.83860534807998,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202431600000100647",
@@ -88476,9 +88476,9 @@
     "emergencyBell": true,
     "cctv": false,
     "dataDate": "2020-06-15",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.5176213468759,
+    "lng": 126.910868961726,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202031800000104805",
@@ -91052,9 +91052,9 @@
     "emergencyBell": false,
     "cctv": true,
     "dataDate": "2020-05-18",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.5179048671126,
+    "lng": 126.905842854025,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202031800000104650",
@@ -93260,9 +93260,9 @@
     "emergencyBell": true,
     "cctv": false,
     "dataDate": "2024-05-07",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.4968720796973,
+    "lng": 126.977631806056,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202431900000100048",
@@ -93927,9 +93927,9 @@
     "emergencyBell": true,
     "cctv": false,
     "dataDate": "2022-01-31",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.50255501820018,
+    "lng": 126.97462182443368,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202431900000100068",
@@ -96434,9 +96434,9 @@
     "emergencyBell": true,
     "cctv": false,
     "dataDate": "2024-05-07",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.4922781872019,
+    "lng": 126.939892272882,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202431900000100052",
@@ -97239,9 +97239,9 @@
     "emergencyBell": true,
     "cctv": false,
     "dataDate": "2022-01-31",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.4922781872019,
+    "lng": 126.939892272882,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202331900000100081",
@@ -98665,9 +98665,9 @@
     "emergencyBell": true,
     "cctv": true,
     "dataDate": "2024-05-07",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.4922781872019,
+    "lng": 126.939892272882,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202331900000100120",
@@ -102000,9 +102000,9 @@
     "emergencyBell": true,
     "cctv": true,
     "dataDate": "2024-11-01",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.4666244895449,
+    "lng": 126.918555171371,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202432000000100225",
@@ -110027,9 +110027,9 @@
     "emergencyBell": true,
     "cctv": false,
     "dataDate": "2022-11-28",
-    "lat": null,
-    "lng": null,
-    "geocodedFrom": "failed"
+    "lat": 37.478913228827174,
+    "lng": 127.04684325189196,
+    "geocodedFrom": "venue"
   },
   {
     "code": "202232200000100325",
