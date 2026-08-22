@@ -18,6 +18,8 @@ import {
 
 const RADIUS_OPTIONS = [300, 500, 1000] as const
 type Radius = (typeof RADIUS_OPTIONS)[number]
+
+const DEFAULT_RADIUS: Radius = 500
 type Mode = 'nearby' | 'district'
 
 /** 한 구가 최대 600건이라 60건씩 처리하면 10번이면 끝난다. 폭주 방지용 상한. */
@@ -44,7 +46,7 @@ const modeClass = (active: boolean) =>
 export function RestroomPage() {
   // 화장실이 급해 들어오는 화면이므로 현재 위치 기준이 기본이다
   const [mode, setMode] = useState<Mode>('nearby')
-  const [radius, setRadius] = useState<Radius>(500)
+  const [radius, setRadius] = useState<Radius>(DEFAULT_RADIUS)
   const [district, setDistrict] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [geocoding, setGeocoding] = useState<{ done: number; failed: number } | null>(null)
@@ -95,6 +97,15 @@ export function RestroomPage() {
     setSelectedId(null)
   }
 
+  // 반경/자치구/선택을 한 번에 되돌린다. 모드는 사용자가 고른 화면이라 그대로 둔다.
+  const isFiltered = radius !== DEFAULT_RADIUS || district !== null || selectedId !== null
+  const resetFilters = () => {
+    setRadius(DEFAULT_RADIUS)
+    setDistrict(null)
+    setSelectedId(null)
+    setGeocodeError(null)
+  }
+
   const missing = items.length - markers.length
   // '아직 안 해봄'과 '해봤지만 실패'를 나눠야 버튼이 헛돌지 않는다
   const pending = items.filter(needsGeocoding).length
@@ -138,20 +149,32 @@ export function RestroomPage() {
   return (
     <div className="flex h-[calc(100dvh-57px)] flex-col">
       <div className="space-y-2 border-b border-stone-200 bg-stone-50 px-4 py-3">
-        <div className="flex rounded-lg bg-stone-100 p-1">
+        <div className="flex items-center gap-2">
+          <div className="flex flex-1 gap-1 rounded-lg bg-stone-100 p-1">
+            <button
+              type="button"
+              onClick={() => switchMode('nearby')}
+              className={modeClass(mode === 'nearby')}
+            >
+              내 주변
+              {radius !== DEFAULT_RADIUS && <span className="ml-1 text-brand-500">•</span>}
+            </button>
+            <button
+              type="button"
+              onClick={() => switchMode('district')}
+              className={modeClass(mode === 'district')}
+            >
+              지역구
+              {district && <span className="ml-1 text-brand-500">•</span>}
+            </button>
+          </div>
           <button
             type="button"
-            onClick={() => switchMode('nearby')}
-            className={modeClass(mode === 'nearby')}
+            onClick={resetFilters}
+            disabled={!isFiltered}
+            className="shrink-0 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm text-stone-500 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
           >
-            내 주변
-          </button>
-          <button
-            type="button"
-            onClick={() => switchMode('district')}
-            className={modeClass(mode === 'district')}
-          >
-            지역구
+            필터 초기화
           </button>
         </div>
 
