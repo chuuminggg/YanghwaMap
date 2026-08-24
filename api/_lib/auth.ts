@@ -1,6 +1,8 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { InvalidInputError, MissingDatabaseUrlError } from './db.js'
+import { MissingKakaoKeyError } from './geocode.js'
+import { MissingUpstreamKeyError, UpstreamError } from './upstream.js'
 
 /** 쓰기 요청이 공유 비밀번호를 실어 보내는 헤더 이름 */
 export const PASSWORD_HEADER = 'x-app-password'
@@ -49,9 +51,20 @@ export function handleError(res: VercelResponse, error: unknown) {
     res.status(400).json({ error: error.message })
     return
   }
-  if (error instanceof MissingDatabaseUrlError) {
+  // 설정이 빠져 호출조차 못 한 경우. 화면이 발급 안내를 그대로 보여 준다.
+  if (
+    error instanceof MissingDatabaseUrlError ||
+    error instanceof MissingKakaoKeyError ||
+    error instanceof MissingUpstreamKeyError
+  ) {
     console.error(error)
     res.status(503).json({ error: error.message })
+    return
+  }
+  // 원본 기관이 실패한 것이므로 우리 500과 구분한다 — 사용자는 '잠시 후 다시'가 답이다.
+  if (error instanceof UpstreamError) {
+    console.error(error)
+    res.status(502).json({ error: error.message })
     return
   }
   console.error(error)
