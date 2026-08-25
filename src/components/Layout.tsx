@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/useAuthStore'
 import { useRestaurantStore } from '../store/useRestaurantStore'
 
 const tabClass = ({ isActive }: { isActive: boolean }) =>
-  `rounded-full px-3 py-1.5 text-sm font-medium transition ${
+  `shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition ${
     isActive ? 'bg-brand-500 text-white' : 'text-stone-500 hover:bg-stone-100'
   }`
 
@@ -22,11 +22,12 @@ export function Layout() {
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col bg-stone-50">
       <header className="sticky top-0 z-30 border-b border-stone-200 bg-stone-50/90 backdrop-blur">
-        <div className="flex items-center justify-between px-4 py-3">
-          <NavLink to="/" className="text-lg font-bold tracking-tight">
-            YanghwaMap <span className="text-brand-500">맛집</span>
+        <div className="flex items-center justify-between gap-2 px-4 py-3">
+          {/* 탭이 늘어 좁은 화면에서는 제목을 줄인다 — 탭 줄이 잘리는 것보다 낫다 */}
+          <NavLink to="/" className="shrink-0 text-lg font-bold tracking-tight">
+            YanghwaMap <span className="hidden text-brand-500 sm:inline">맛집</span>
           </NavLink>
-          <nav className="flex items-center gap-1">
+          <nav className="-mr-4 flex items-center gap-1 overflow-x-auto pr-4">
             <NavLink to="/" end className={tabClass}>
               목록
             </NavLink>
@@ -36,10 +37,13 @@ export function Layout() {
             <NavLink to="/restroom" className={tabClass}>
               화장실
             </NavLink>
+            <NavLink to="/drive" className={tabClass}>
+              운전
+            </NavLink>
             <button
               type="button"
               onClick={logout}
-              className="rounded-full px-3 py-1.5 text-sm text-stone-400 hover:bg-stone-100"
+              className="shrink-0 rounded-full px-3 py-1.5 text-sm text-stone-400 hover:bg-stone-100"
             >
               잠금
             </button>

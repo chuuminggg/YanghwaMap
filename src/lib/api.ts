@@ -1,3 +1,4 @@
+import type { HighwayCctvResult, HighwayTraffic } from '../types/drive'
 import type { Restaurant, RestaurantDraft } from '../types/restaurant'
 import type { DistrictCount, NearbyRestroom, Restroom } from '../types/restroom'
 
@@ -107,6 +108,28 @@ export const geocodeRestroomDistrict = (district: string, retry = false) => {
   if (retry) query.set('retry', '1')
   return request<GeocodeResult>(`/api/restrooms/geocode?${query}`, { method: 'POST', auth: true })
 }
+
+/** 쿼리스트링을 만들 때 빈 값은 아예 빼서 서버가 '없음'과 '빈 문자열'을 헷갈리지 않게 한다. */
+const query = (params: Record<string, string | number | null | undefined>) => {
+  const search = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== null && value !== undefined && value !== '') search.set(key, String(value))
+  }
+  return search.toString()
+}
+
+/** 고속도로 실시간 소통. 노선/키워드는 서버가 전국 목록에서 걸러 준다. */
+export const listHighwayTraffic = (params: { route?: string | null; keyword?: string | null; limit?: number }) =>
+  request<HighwayTraffic>(`/api/drive/highway?${query({ kind: 'traffic', ...params })}`)
+
+/** 기준 좌표 주변 고속도로 CCTV 목록 (거리순) */
+export const listHighwayCctv = (params: {
+  lat: number
+  lng: number
+  radius: number
+  limit?: number
+  roadType?: string
+}) => request<HighwayCctvResult>(`/api/drive/highway?${query({ kind: 'cctv', ...params })}`)
 
 /** 서버가 가진 APP_PASSWORD와 대조한다. 실패 사유는 ApiError 메시지에 담겨 온다. */
 export const verifyPassword = (candidate: string) =>

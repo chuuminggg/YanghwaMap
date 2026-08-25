@@ -2,6 +2,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router'
 import { Layout } from './components/Layout'
 import { RequireAuth } from './components/RequireAuth'
 import { DetailPage } from './pages/DetailPage'
+import { DrivePage } from './pages/DrivePage'
 import { EditPage } from './pages/EditPage'
 import { ListPage } from './pages/ListPage'
 import { LoginPage } from './pages/LoginPage'
@@ -21,6 +22,7 @@ const router = createBrowserRouter([
           { index: true, element: <ListPage /> },
           { path: 'map', element: <MapPage /> },
           { path: 'restroom', element: <RestroomPage /> },
+          { path: 'drive', element: <DrivePage /> },
           { path: 'new', element: <NewPage /> },
           { path: ':id', element: <DetailPage /> },
           { path: ':id/edit', element: <EditPage /> },
