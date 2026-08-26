@@ -1,4 +1,4 @@
-import type { HighwayCctvResult, HighwayTraffic } from '../types/drive'
+import type { HighwayCctvResult, HighwayTraffic, ParkingResult } from '../types/drive'
 import type { Restaurant, RestaurantDraft } from '../types/restaurant'
 import type { DistrictCount, NearbyRestroom, Restroom } from '../types/restroom'
 
@@ -130,6 +130,18 @@ export const listHighwayCctv = (params: {
   limit?: number
   roadType?: string
 }) => request<HighwayCctvResult>(`/api/drive/highway?${query({ kind: 'cctv', ...params })}`)
+
+/** 기준 좌표 주변 주차장 (거리순). publicOnly=false 면 민영까지 포함한다. */
+export const listNearbyParking = (params: {
+  lat: number
+  lng: number
+  radius: number
+  limit?: number
+  publicOnly?: boolean
+}) =>
+  request<ParkingResult>(
+    `/api/drive/parking?${query({ ...params, publicOnly: params.publicOnly === false ? '0' : null })}`,
+  )
 
 /** 서버가 가진 APP_PASSWORD와 대조한다. 실패 사유는 ApiError 메시지에 담겨 온다. */
 export const verifyPassword = (candidate: string) =>

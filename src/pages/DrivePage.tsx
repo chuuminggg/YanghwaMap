@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { HighwayPanel } from '../components/drive/HighwayPanel'
+import { ParkingPanel } from '../components/drive/ParkingPanel'
 import { chipClass } from '../components/drive/styles'
 import { useCurrentPosition } from '../hooks/useCurrentPosition'
 
@@ -9,12 +10,15 @@ import { useCurrentPosition } from '../hooks/useCurrentPosition'
  * 헤더 탭을 기능마다 하나씩 늘리면 좁은 화면에서 금방 넘친다. 대신 여기서 하위 칩으로 나누고,
  * 위치는 이 화면이 한 번만 잡아 패널들에 넘긴다 — 탭을 옮길 때마다 권한 창이 다시 뜨지 않는다.
  */
-const TABS = [{ key: 'highway', label: '고속도로', needsPosition: true }] as const
+const TABS = [
+  { key: 'parking', label: '주차장', needsPosition: true },
+  { key: 'highway', label: '고속도로', needsPosition: true },
+] as const
 
 type TabKey = (typeof TABS)[number]['key']
 
 export function DrivePage() {
-  const [tab, setTab] = useState<TabKey>('highway')
+  const [tab, setTab] = useState<TabKey>('parking')
   const active = TABS.find((item) => item.key === tab)!
 
   // 위치가 필요 없는 패널(보조금 등)에서는 권한 창을 띄우지 않는다
@@ -38,6 +42,9 @@ export function DrivePage() {
         </div>
       </div>
 
+      {tab === 'parking' && (
+        <ParkingPanel origin={origin} position={position} onRefreshPosition={refresh} />
+      )}
       {tab === 'highway' && (
         <HighwayPanel origin={origin} position={position} onRefreshPosition={refresh} />
       )}

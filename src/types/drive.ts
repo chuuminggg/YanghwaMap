@@ -67,3 +67,68 @@ export const gradeTone = (grade: number | null) =>
       : grade === 1
         ? 'bg-emerald-50 text-emerald-700'
         : 'bg-stone-100 text-stone-500'
+
+/** 운영시간 한 쌍. 원본이 'HHMM' 문자열이고 비어 있는 경우가 흔하다. */
+export type OpenHours = { open: string; close: string }
+
+/**
+ * 공영주차장 한 곳. 공공데이터포털 '전국주차장정보표준데이터'.
+ * 실시간 잔여 면수·만차·예약 여부는 원본에 없다 — 추측해서 채우지 않는다.
+ */
+export type ParkingLot = {
+  id: string
+  name: string
+  /** 공영 / 민영 */
+  category: string
+  /** 노상 / 노외 / 부설 */
+  type: string
+  address: string
+  lat: number
+  lng: number
+  distanceMeters: number
+  /** 주차구획수 */
+  capacity: number | null
+  /** 자유 형식 요금 안내 */
+  feeInfo: string
+  basicTime: number | null
+  basicCharge: number | null
+  addUnitTime: number | null
+  addUnitCharge: number | null
+  dailyCharge: number | null
+  monthlyCharge: number | null
+  operatingDays: string
+  weekday: OpenHours
+  saturday: OpenHours
+  holiday: OpenHours
+  paymentMethods: string
+  phone: string
+  agency: string
+  /** 장애인 전용 구역 보유. 원본이 비어 있으면 null(모름) */
+  accessible: boolean | null
+  referenceDate: string
+}
+
+export type ParkingResult = {
+  /** 좌표로 알아낸 조회 구역 ('서울특별시 마포구') */
+  region: string
+  items: ParkingLot[]
+  total: number
+}
+
+/** '30분 1,200원' 형태의 한 줄 요금. 기본시간·기본요금이 다 있어야 말이 된다. */
+export const basicFee = (lot: Pick<ParkingLot, 'basicTime' | 'basicCharge'>) =>
+  lot.basicTime !== null && lot.basicCharge !== null
+    ? `${lot.basicTime}분 ${lot.basicCharge.toLocaleString('ko-KR')}원`
+    : ''
+
+/** 'HHMM' → 'HH:MM'. 원본에 '0900' 과 '09:00' 이 섞여 있다. */
+export const clockLabel = (raw: string) => {
+  const digits = raw.replace(/\D/g, '')
+  return digits.length === 4 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : raw
+}
+
+/** 평일 운영시간 한 줄. 둘 중 하나라도 비면 표기를 생략한다. */
+export const weekdayHours = (lot: Pick<ParkingLot, 'weekday'>) =>
+  lot.weekday.open && lot.weekday.close
+    ? `${clockLabel(lot.weekday.open)}~${clockLabel(lot.weekday.close)}`
+    : ''
