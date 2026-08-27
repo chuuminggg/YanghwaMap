@@ -1,4 +1,9 @@
-import type { HighwayCctvResult, HighwayTraffic, ParkingResult } from '../types/drive'
+import type {
+  EvStationResult,
+  HighwayCctvResult,
+  HighwayTraffic,
+  ParkingResult,
+} from '../types/drive'
 import type { Restaurant, RestaurantDraft } from '../types/restaurant'
 import type { DistrictCount, NearbyRestroom, Restroom } from '../types/restroom'
 
@@ -141,6 +146,18 @@ export const listNearbyParking = (params: {
 }) =>
   request<ParkingResult>(
     `/api/drive/parking?${query({ ...params, publicOnly: params.publicOnly === false ? '0' : null })}`,
+  )
+
+/** 기준 좌표 주변 전기차 충전소 (거리순). 충전기는 충전소로 묶여 온다. */
+export const listNearbyChargers = (params: {
+  lat: number
+  lng: number
+  radius: number
+  limit?: number
+  availableOnly?: boolean
+}) =>
+  request<EvStationResult>(
+    `/api/drive/chargers?${query({ ...params, availableOnly: params.availableOnly ? '1' : null })}`,
   )
 
 /** 서버가 가진 APP_PASSWORD와 대조한다. 실패 사유는 ApiError 메시지에 담겨 온다. */

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ChargerPanel } from '../components/drive/ChargerPanel'
 import { HighwayPanel } from '../components/drive/HighwayPanel'
 import { ParkingPanel } from '../components/drive/ParkingPanel'
 import { chipClass } from '../components/drive/styles'
@@ -12,6 +13,7 @@ import { useCurrentPosition } from '../hooks/useCurrentPosition'
  */
 const TABS = [
   { key: 'parking', label: '주차장', needsPosition: true },
+  { key: 'charger', label: '충전소', needsPosition: true },
   { key: 'highway', label: '고속도로', needsPosition: true },
 ] as const
 
@@ -44,6 +46,9 @@ export function DrivePage() {
 
       {tab === 'parking' && (
         <ParkingPanel origin={origin} position={position} onRefreshPosition={refresh} />
+      )}
+      {tab === 'charger' && (
+        <ChargerPanel origin={origin} position={position} onRefreshPosition={refresh} />
       )}
       {tab === 'highway' && (
         <HighwayPanel origin={origin} position={position} onRefreshPosition={refresh} />

@@ -132,3 +132,59 @@ export const weekdayHours = (lot: Pick<ParkingLot, 'weekday'>) =>
   lot.weekday.open && lot.weekday.close
     ? `${clockLabel(lot.weekday.open)}~${clockLabel(lot.weekday.close)}`
     : ''
+
+/** 충전기 한 대. 원본은 충전기 단위로 행을 주고, 화면에서는 충전소로 묶어 보여 준다. */
+export type EvCharger = {
+  chargerId: string
+  /** 커넥터 코드 ('04') */
+  type: string
+  /** 'DC콤보' */
+  typeLabel: string
+  /** 충전 용량 kW */
+  output: number | null
+  /** 상태 코드 — '2'만이 지금 꽂을 수 있다는 뜻이다 */
+  status: string
+  statusLabel: string
+  updatedAt: string
+}
+
+export type EvStation = {
+  id: string
+  name: string
+  address: string
+  /** '지하 2층 B구역' 같은 상세 위치 */
+  location: string
+  lat: number
+  lng: number
+  distanceMeters: number
+  operator: string
+  phone: string
+  useTime: string
+  parkingFree: boolean | null
+  /** 이용자 제한(아파트 입주민 전용 등). 원본이 비면 null */
+  limited: boolean | null
+  limitDetail: string
+  note: string
+  chargers: EvCharger[]
+  /** 지금 충전대기 상태인 충전기 수 */
+  availableCount: number
+}
+
+export type EvStationResult = {
+  region: string
+  items: EvStation[]
+  total: number
+  /**
+   * 상태 조회까지 성공했는지. false 면 availableCount 는 위치 정보에 딸려 온 값이라
+   * 실시간이 아닐 수 있어 화면에서 '충전 가능' 숫자를 강조하지 않는다.
+   */
+  liveStatus: boolean
+}
+
+/** 급속(50kW 이상) 충전기가 하나라도 있는지 — 카드에서 가장 먼저 보고 싶은 값 */
+export const hasFastCharger = (station: Pick<EvStation, 'chargers'>) =>
+  station.chargers.some((charger) => (charger.output ?? 0) >= 50)
+
+/** 충전소가 가진 커넥터 종류 요약 (중복 제거) */
+export const connectorSummary = (station: Pick<EvStation, 'chargers'>) =>
+  [...new Set(station.chargers.map((c) => c.typeLabel).filter(Boolean))].join(' · ')
