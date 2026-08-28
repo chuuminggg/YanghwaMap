@@ -1,5 +1,6 @@
 import type {
   EvStationResult,
+  GasResult,
   HighwayCctvResult,
   HighwayTraffic,
   ParkingResult,
@@ -159,6 +160,15 @@ export const listNearbyChargers = (params: {
   request<EvStationResult>(
     `/api/drive/chargers?${query({ ...params, availableOnly: params.availableOnly ? '1' : null })}`,
   )
+
+/** 기준 좌표 주변 주유소를 가격순으로. product 는 유종 코드(B027 휘발유 등). */
+export const listCheapGas = (params: {
+  lat: number
+  lng: number
+  radius: number
+  limit?: number
+  product?: string
+}) => request<GasResult>(`/api/drive/gas?${query({ ...params })}`)
 
 /** 서버가 가진 APP_PASSWORD와 대조한다. 실패 사유는 ApiError 메시지에 담겨 온다. */
 export const verifyPassword = (candidate: string) =>

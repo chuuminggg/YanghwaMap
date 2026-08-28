@@ -188,3 +188,59 @@ export const hasFastCharger = (station: Pick<EvStation, 'chargers'>) =>
 /** 충전소가 가진 커넥터 종류 요약 (중복 제거) */
 export const connectorSummary = (station: Pick<EvStation, 'chargers'>) =>
   [...new Set(station.chargers.map((c) => c.typeLabel).filter(Boolean))].join(' · ')
+
+/**
+ * 주유소 한 곳. 오피넷 반경 검색 결과에 상세 조회를 덧댄 형태.
+ * 가격순 상위 몇 곳만 상세를 채우므로 뒤쪽 항목은 주소·편의시설이 비어 있다.
+ */
+export type GasStation = {
+  id: string
+  name: string
+  /** 'SKE' */
+  brandCode: string
+  /** 'SK에너지' */
+  brandName: string
+  /** 선택한 유종의 리터당 가격 */
+  price: number | null
+  distanceMeters: number
+  /** KATEC을 되돌린 값. 원본에 좌표가 없으면 null이라 지도에 못 찍는다. */
+  lat: number | null
+  lng: number | null
+  address: string
+  phone: string
+  isSelf: boolean
+  hasCarWash: boolean
+  hasMaintenance: boolean
+  hasStore: boolean
+  /** 품질인증(K-Petro) 주유소 */
+  certified: boolean
+  /** 유종 코드별 가격. 상세를 받은 곳만 채워진다. */
+  prices: Record<string, number | null>
+}
+
+export type GasResult = {
+  productCode: string
+  productName: string
+  items: GasStation[]
+  total: number
+  /** 상세를 채운 개수 */
+  detailed: number
+}
+
+/** 유종 선택 칩에 쓰는 목록. 서버의 PRODUCTS 와 짝을 이룬다. */
+export const GAS_PRODUCTS = [
+  { code: 'B027', label: '휘발유' },
+  { code: 'D047', label: '경유' },
+  { code: 'B034', label: '고급휘발유' },
+  { code: 'K015', label: 'LPG' },
+] as const
+
+/** 좌표가 채워진 항목만 지도에 그릴 수 있다. */
+export const gasHasCoords = (s: GasStation): s is GasStation & { lat: number; lng: number } =>
+  typeof s.lat === 'number' && typeof s.lng === 'number'
+
+/** 최저가 대비 얼마나 비싼지 — 목록에서 한눈에 비교하려고 쓴다 */
+export const priceGap = (station: GasStation, cheapest: number | null) =>
+  station.price !== null && cheapest !== null && station.price > cheapest
+    ? `+${(station.price - cheapest).toLocaleString('ko-KR')}`
+    : ''

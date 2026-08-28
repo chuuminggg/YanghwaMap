@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ChargerPanel } from '../components/drive/ChargerPanel'
+import { GasPanel } from '../components/drive/GasPanel'
 import { HighwayPanel } from '../components/drive/HighwayPanel'
 import { ParkingPanel } from '../components/drive/ParkingPanel'
 import { chipClass } from '../components/drive/styles'
@@ -12,6 +13,7 @@ import { useCurrentPosition } from '../hooks/useCurrentPosition'
  * 위치는 이 화면이 한 번만 잡아 패널들에 넘긴다 — 탭을 옮길 때마다 권한 창이 다시 뜨지 않는다.
  */
 const TABS = [
+  { key: 'gas', label: '주유소', needsPosition: true },
   { key: 'parking', label: '주차장', needsPosition: true },
   { key: 'charger', label: '충전소', needsPosition: true },
   { key: 'highway', label: '고속도로', needsPosition: true },
@@ -20,7 +22,7 @@ const TABS = [
 type TabKey = (typeof TABS)[number]['key']
 
 export function DrivePage() {
-  const [tab, setTab] = useState<TabKey>('parking')
+  const [tab, setTab] = useState<TabKey>('gas')
   const active = TABS.find((item) => item.key === tab)!
 
   // 위치가 필요 없는 패널(보조금 등)에서는 권한 창을 띄우지 않는다
@@ -44,6 +46,7 @@ export function DrivePage() {
         </div>
       </div>
 
+      {tab === 'gas' && <GasPanel origin={origin} position={position} onRefreshPosition={refresh} />}
       {tab === 'parking' && (
         <ParkingPanel origin={origin} position={position} onRefreshPosition={refresh} />
       )}
