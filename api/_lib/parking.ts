@@ -101,14 +101,13 @@ function toParkingLot(row: Row, origin: { lat: number; lng: number }): ParkingLo
   }
 }
 
-async function fetchPage(addressField: string, addressHint: string, publicOnly: boolean) {
+async function fetchPage(addressField: string, addressHint: string) {
   const params: Record<string, string> = {
     pageNo: '1',
     numOfRows: PAGE_SIZE,
     type: 'json',
     [addressField]: addressHint,
   }
-  if (publicOnly) params.prkplceSe = '공영'
 
   const payload = await fetchDataGoKr<{ response?: { body?: unknown } }>(API_URL, params, SOURCE)
   return itemsOf<Row>(payload.response?.body)
@@ -123,14 +122,30 @@ export async function findNearbyParking({
 }: ParkingParams): Promise<ParkingResult> {
   const region = await resolveRegion(lat, lng)
 
-  // 도로명주소로 거른다. 지자체에 따라 도로명이 비어 있고 지번만 채운 행이 있어,
-  // 아무것도 안 걸리면 지번으로 한 번 더 물어본다.
-  let rows = await fetchPage('rdnmadr', region.addressHint, publicOnly)
-  if (rows.length === 0) rows = await fetchPage('lnmadr', region.addressHint, publicOnly)
+  /**
+   * 주소 문자열로 거르는 수밖에 없는데, 어느 칸이 채워져 있는지가 지자체마다 다르다.
+   * 하나가 빈손이면 다음을 시도한다. 시군구만으로 묻는 마지막 시도는 시도 이름 표기가
+   * 어긋날 때를 위한 것이다 ('서울특별시'와 '서울시'처럼).
+   */
+  const attempts: [string, string][] = [
+    ['rdnmadr', region.addressHint],
+    ['lnmadr', region.addressHint],
+    ...(region.sigungu ? ([['rdnmadr', region.sigungu]] as [string, string][]) : []),
+  ]
+
+  let rows: Row[] = []
+  for (const [field, hint] of attempts) {
+    rows = await fetchPage(field, hint)
+    if (rows.length > 0) break
+  }
 
   const items = rows
     .map((row) => toParkingLot(row, { lat, lng }))
     .filter((item): item is ParkingLot => item !== null)
+    // 공영/민영은 서버 필터(prkplceSe=공영)에 맡기지 않고 여기서 가른다.
+    // 표기가 '공영'이 아닌 행이 섞여 있으면 서버 필터는 그 행을 통째로 떨어뜨리는데,
+    // 시군구 하나가 1000건을 넘는 일이 없어 다 받아 와도 부담이 없다.
+    .filter((item) => !publicOnly || item.category.includes('공영'))
     .filter((item) => item.distanceMeters <= radiusMeters)
     .sort((a, b) => a.distanceMeters - b.distanceMeters || a.name.localeCompare(b.name, 'ko'))
 

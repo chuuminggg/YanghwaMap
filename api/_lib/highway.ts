@@ -6,7 +6,15 @@ import type {
 } from '../../src/types/drive.js'
 import { InvalidInputError } from './db.js'
 import { haversineMeters, inKorea } from './geo.js'
-import { clamp, fetchUpstreamJson, fetchUpstreamText, first, optionalInt, UpstreamError } from './upstream.js'
+import {
+  clamp,
+  fetchUpstreamJson,
+  fetchUpstreamText,
+  first,
+  optionalInt,
+  readKey,
+  UpstreamError,
+} from './upstream.js'
 
 /**
  * 고속도로 실시간 소통·교통량(한국도로공사)과 CCTV 메타데이터(국가교통정보센터 ITS).
@@ -22,14 +30,14 @@ const EXDATA_SOURCE = '한국도로공사'
 const ITS_SOURCE = '국가교통정보센터'
 
 /** 공개 데모 키. 개인 키가 있으면 그쪽이 이긴다. */
-const exdataKey = () => process.env.EXDATA_API_KEY || 'test'
-const itsKey = () => process.env.ITS_API_KEY || 'test'
+const exdataKey = () => readKey('EXDATA_API_KEY') ?? 'test'
+const itsKey = () => readKey('ITS_API_KEY') ?? 'test'
 /**
  * ITS 데모 키는 좌표 범위를 무시하고 늘 같은 20건(수도권제1순환선)을 돌려준다.
  * 부산·제주로 조회해도 응답이 같은 것을 확인했다(2026-08-31). 그래서 데모 키일 때는
  * 반경으로 자르면 목록이 늘 비어 고장처럼 보인다 — 자르지 않고 '표본'이라고 밝힌다.
  */
-const usingDemoItsKey = () => !process.env.ITS_API_KEY
+const usingDemoItsKey = () => !readKey('ITS_API_KEY')
 
 export const TRAFFIC_LIMITS = { min: 5, max: 100, fallback: 30 }
 /** CCTV는 고속도로변에만 있어 반경을 넓게 잡아야 하나라도 걸린다. */

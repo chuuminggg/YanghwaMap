@@ -28,6 +28,31 @@ export class MissingUpstreamKeyError extends Error {
 }
 
 /**
+ * 키가 있긴 한데 형태가 깨진 경우. 없는 것과 마찬가지로 우리 설정 문제라 503으로 다룬다.
+ * '등록되지 않은 키'(기관이 거부 → 502)와는 구분해야 한다 — 이쪽은 붙여넣기를 다시 하면 된다.
+ */
+export class InvalidUpstreamKeyError extends Error {
+  constructor(envName: string, guide: string) {
+    super(`${envName} 값의 형식이 올바르지 않습니다. ${guide}`)
+    this.name = 'InvalidUpstreamKeyError'
+  }
+}
+
+/**
+ * 환경 변수에서 인증키를 읽는다.
+ *
+ * 키는 거의 항상 웹 화면에서 복사해 붙여넣는 값이라 앞뒤 공백이나 감싼 따옴표가 딸려 온다.
+ * 어느 기관 키도 공백·따옴표를 값의 일부로 쓰지 않으므로 떼어 내는 쪽이 항상 맞다.
+ * (따옴표를 그대로 두면 기관은 '등록되지 않은 키'라고만 답해 원인을 찾기 어렵다.)
+ */
+export function readKey(envName: string): string | undefined {
+  const raw = process.env[envName]?.trim()
+  if (!raw) return undefined
+  const unquoted = raw.replace(/^(['"])([\s\S]*)\1$/, '$2').trim()
+  return unquoted || undefined
+}
+
+/**
  * data.ex.co.kr은 기본 UA(curl/node)를 WAF가 400 'Request Blocked'로 막는다.
  * 나머지 기관도 브라우저 UA를 싫어하지 않으므로 전부 같은 값을 쓴다.
  */

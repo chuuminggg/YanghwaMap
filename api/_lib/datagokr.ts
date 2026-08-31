@@ -1,4 +1,10 @@
-import { fetchUpstreamJson, MissingUpstreamKeyError, UpstreamError } from './upstream.js'
+import {
+  fetchUpstreamJson,
+  InvalidUpstreamKeyError,
+  MissingUpstreamKeyError,
+  readKey,
+  UpstreamError,
+} from './upstream.js'
 
 /**
  * 공공데이터포털(data.go.kr) 공통부.
@@ -14,9 +20,30 @@ const KEY_GUIDE =
   '포털 키가 있어도 데이터셋마다 활용신청을 따로 해야 합니다(대부분 자동승인).'
 
 export const dataGoKrKey = () => {
-  const key = process.env.DATA_GO_KR_API_KEY
+  const key = readKey('DATA_GO_KR_API_KEY')
   if (!key) throw new MissingUpstreamKeyError('DATA_GO_KR_API_KEY', KEY_GUIDE)
   return key
+}
+
+/**
+ * 포털은 같은 키를 두 형태로 발급한다.
+ *   Encoding : abc%2Bdef%2Fghi%3D%3D
+ *   Decoding : abc+def/ghi==
+ * 어느 쪽을 넣어도 되도록 한 번 풀었다가 다시 인코딩해 한 가지 형태로 맞춘다.
+ * Decoding 키에는 '%'가 없어 푸는 단계가 사실상 통과이고, Encoding 키만 실제로 풀린다.
+ *
+ * 키가 중간에 잘려 '%'가 홀로 남으면 decodeURIComponent 가 URIError 를 던진다.
+ * 그대로 두면 우리 버그처럼 보이는 500이 나가므로, 붙여넣기 문제라고 분명히 말해 준다.
+ */
+function encodeServiceKey(key: string): string {
+  try {
+    return encodeURIComponent(decodeURIComponent(key))
+  } catch {
+    throw new InvalidUpstreamKeyError(
+      'DATA_GO_KR_API_KEY',
+      '포털 > 마이페이지 > 인증키 발급현황에서 일반 인증키(Decoding) 한 칸을 통째로 다시 복사해 주세요.',
+    )
+  }
 }
 
 type ErrorEnvelope = {
@@ -41,17 +68,16 @@ function explain(raw: string): string {
 
 /**
  * 포털을 부르고 성공 응답만 돌려준다.
- * `serviceKey`는 포털이 이미 URL 인코딩된 형태로 키를 발급하는 경우가 있어
- * URLSearchParams 로 다시 인코딩하면 이중 인코딩이 된다. 그래서 직접 붙인다.
+ * `serviceKey`는 encodeServiceKey 가 이미 인코딩해 두므로 URLSearchParams 에 넣지 않고
+ * 직접 붙인다 — 넣으면 '%'가 다시 인코딩돼 이중 인코딩이 된다.
  */
 export async function fetchDataGoKr<T>(
   baseUrl: string,
   params: Record<string, string>,
   source: string,
 ): Promise<T> {
-  const key = dataGoKrKey()
   const query = new URLSearchParams(params).toString()
-  const url = `${baseUrl}?serviceKey=${encodeURIComponent(decodeURIComponent(key))}&${query}`
+  const url = `${baseUrl}?serviceKey=${encodeServiceKey(dataGoKrKey())}&${query}`
 
   const payload = await fetchUpstreamJson<T & ErrorEnvelope>(url, { source })
 

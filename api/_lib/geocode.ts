@@ -1,4 +1,5 @@
 import { db, InvalidInputError } from './db.js'
+import { readKey } from './upstream.js'
 
 /**
  * 공중화장실 표준데이터에는 좌표가 없어(2025-02 제공 중단) 주소로 채워야 한다.
@@ -145,7 +146,7 @@ export type GeocodeResult = {
  * 재시도하다 끝나지 않는 걸 막으려고, 실패는 geocode_failed_at 에 표시해 건너뛴다.
  */
 export async function geocodeDistrict(district: string, retry = false): Promise<GeocodeResult> {
-  const key = process.env.KAKAO_REST_API_KEY
+  const key = readKey('KAKAO_REST_API_KEY')
   if (!key) throw new MissingKakaoKeyError()
 
   const sql = db()

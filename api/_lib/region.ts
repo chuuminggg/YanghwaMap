@@ -1,6 +1,6 @@
 import { InvalidInputError } from './db.js'
 import { MissingKakaoKeyError } from './geocode.js'
-import { UpstreamError } from './upstream.js'
+import { readKey, UpstreamError } from './upstream.js'
 
 /**
  * 좌표 → 행정구역. 공공데이터 API 상당수가 반경 검색을 지원하지 않고
@@ -35,7 +35,7 @@ type Document = {
 }
 
 export async function resolveRegion(lat: number, lng: number): Promise<Region> {
-  const key = process.env.KAKAO_REST_API_KEY
+  const key = readKey('KAKAO_REST_API_KEY')
   if (!key) throw new MissingKakaoKeyError()
 
   const url =

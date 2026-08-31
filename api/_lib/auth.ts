@@ -2,7 +2,7 @@ import { createHash, timingSafeEqual } from 'node:crypto'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { InvalidInputError, MissingDatabaseUrlError } from './db.js'
 import { MissingKakaoKeyError } from './geocode.js'
-import { MissingUpstreamKeyError, UpstreamError } from './upstream.js'
+import { InvalidUpstreamKeyError, MissingUpstreamKeyError, UpstreamError } from './upstream.js'
 
 /** 쓰기 요청이 공유 비밀번호를 실어 보내는 헤더 이름 */
 export const PASSWORD_HEADER = 'x-app-password'
@@ -55,7 +55,8 @@ export function handleError(res: VercelResponse, error: unknown) {
   if (
     error instanceof MissingDatabaseUrlError ||
     error instanceof MissingKakaoKeyError ||
-    error instanceof MissingUpstreamKeyError
+    error instanceof MissingUpstreamKeyError ||
+    error instanceof InvalidUpstreamKeyError
   ) {
     console.error(error)
     res.status(503).json({ error: error.message })

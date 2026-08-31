@@ -2,7 +2,7 @@ import type { GasStation, GasResult } from '../../src/types/drive.js'
 import { InvalidInputError } from './db.js'
 import { inKorea } from './geo.js'
 import { katecToWgs84, wgs84ToKatec } from './katec.js'
-import { fetchUpstreamJson, first, MissingUpstreamKeyError, optionalInt } from './upstream.js'
+import { fetchUpstreamJson, first, MissingUpstreamKeyError, optionalInt, readKey } from './upstream.js'
 
 /**
  * 근처 가장 싼 주유소 — 오피넷(한국석유공사) 오픈 API.
@@ -47,7 +47,7 @@ const BRANDS: Record<string, string> = {
 }
 
 const opinetKey = () => {
-  const key = process.env.OPINET_API_KEY
+  const key = readKey('OPINET_API_KEY')
   if (!key) {
     throw new MissingUpstreamKeyError(
       'OPINET_API_KEY',
