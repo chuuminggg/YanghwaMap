@@ -23,9 +23,14 @@ export function Layout() {
     <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col bg-stone-50">
       <header className="sticky top-0 z-30 border-b border-stone-200 bg-stone-50/90 backdrop-blur">
         <div className="flex items-center justify-between gap-2 px-4 py-3">
-          {/* 탭이 늘어 좁은 화면에서는 제목을 줄인다 — 탭 줄이 잘리는 것보다 낫다 */}
-          <NavLink to="/" className="shrink-0 text-lg font-bold tracking-tight">
-            YanghwaMap <span className="hidden text-brand-500 sm:inline">맛집</span>
+          {/*
+            탭이 다섯이 되면서 390px 화면에서 제목(110px) + 탭(306px)이 들어가지 않아
+            '잠금'이 정확히 잘려 나갔다. 모바일에서는 제목을 감춘다 —
+            첫 탭인 '목록'이 이미 홈으로 가므로 워드마크는 여기서 장식에 가깝고,
+            잠금 버튼이 화면 밖으로 밀리는 쪽이 훨씬 나쁘다.
+          */}
+          <NavLink to="/" className="hidden shrink-0 text-lg font-bold tracking-tight sm:block">
+            YanghwaMap <span className="text-brand-500">맛집</span>
           </NavLink>
           <nav className="-mr-4 flex items-center gap-1 overflow-x-auto pr-4">
             <NavLink to="/" end className={tabClass}>

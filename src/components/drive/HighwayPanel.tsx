@@ -234,7 +234,7 @@ export function HighwayPanel({
 
       <p className="border-t border-stone-200 bg-white px-4 py-2 text-xs text-stone-500">
         {mode === 'traffic'
-          ? '한국도로공사 실시간 자료입니다. 검지기가 값을 못 주면 자료없음으로 표시됩니다.'
+          ? '한국도로공사 실시간 자료입니다. 속도는 구간 평균이 아니라 가장 막히는 지점 기준입니다.'
           : sample
             ? 'ITS 공개 데모 키는 좌표 범위를 무시하고 같은 표본만 돌려줍니다. 내 주변으로 쓰려면 ITS_API_KEY 를 발급받아 넣어 주세요.'
             : 'CCTV 주소는 서명된 HLS라 만료되고 http라서 이 화면에서 재생할 수 없습니다. 복사해 외부 플레이어로 여세요.'}

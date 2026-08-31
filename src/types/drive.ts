@@ -16,7 +16,10 @@ export type HighwayConzone = {
   /** '구서IC-영락IC' */
   conzoneName: string
   direction: '상행' | '하행' | ''
-  /** 구간 평균 속도(km/h). 검지기가 자료를 못 주면 null */
+  /**
+   * 구간에서 가장 막히는 지점의 속도(km/h). 평균이 아니다 —
+   * 같은 검지기의 등급과 짝이 맞아야 '정체 93km/h' 같은 카드가 나오지 않는다.
+   */
   speed: number | null
   /** 5분간 통과 대수 합 */
   trafficAmount: number | null

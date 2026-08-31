@@ -89,41 +89,58 @@ export function parseTrafficQuery(query: Record<string, string | string[] | unde
 
 /**
  * 한 콘존에는 검지기(vdsId)가 여러 대라 같은 구간이 여러 행으로 온다.
- * 그대로 보여 주면 '구서IC-영락IC'가 목록에 세 번 뜨므로 콘존×방향으로 묶어
- * 속도는 평균, 교통량은 합, 소통등급은 가장 나쁜 값을 취한다.
+ * 그대로 보여 주면 '구서IC-영락IC'가 목록에 세 번 뜨므로 콘존×방향으로 묶는다.
+ *
+ * 묶을 때 등급과 속도를 서로 다른 방식으로 요약하면 안 된다. 등급은 최댓값, 속도는 평균으로
+ * 잡았더니 '정체 73km/h' 같은 카드가 나왔다 — 삼척IC-근덕IC는 검지기 넷이 89·1·99·99km/h 인데
+ * 1km/h 짜리 하나가 등급을 3으로 올리고 평균은 72로 남긴 탓이다. 전체 콘존의 5분의 1에서
+ * 검지기끼리 등급이 갈리므로 드문 일도 아니다.
+ *
+ * 그래서 대표 검지기 한 대를 골라 그 행의 등급과 속도를 함께 쓴다. 가장 나쁜 등급,
+ * 같으면 가장 느린 쪽이다. 이 화면은 '막히는 구간부터' 보여 주는 곳이라 구간 평균보다
+ * 구간 안에서 가장 막히는 지점이 알고 싶은 값이다. 교통량만 구간 전체의 합이다.
  */
 function foldConzones(rows: TrafficRow[]): HighwayConzone[] {
-  const groups = new Map<string, { row: TrafficRow; speeds: number[]; amount: number; grade: number | null }>()
+  const groups = new Map<string, { rows: TrafficRow[]; amount: number }>()
 
   for (const row of rows) {
     if (!row.conzoneId) continue
     const id = `${row.conzoneId}:${row.updownTypeCode ?? ''}`
-    const group = groups.get(id) ?? { row, speeds: [], amount: 0, grade: null }
+    const group = groups.get(id) ?? { rows: [], amount: 0 }
 
-    const speed = numeric(row.speed)
-    if (speed !== null) group.speeds.push(speed)
-
+    group.rows.push(row)
     const amount = numeric(row.trafficAmout)
     if (amount !== null) group.amount += amount
-
-    const grade = numeric(row.grade)
-    if (grade !== null && grade > 0) group.grade = Math.max(group.grade ?? 0, grade)
 
     groups.set(id, group)
   }
 
-  return [...groups.entries()].map(([id, { row, speeds, amount, grade }]) => ({
-    id,
-    routeNo: row.routeNo ?? '',
-    routeName: row.routeName ?? '',
-    conzoneName: row.conzoneName ?? '',
-    direction: directionOf(row.updownTypeCode ?? ''),
-    speed: speeds.length ? Math.round(speeds.reduce((a, b) => a + b, 0) / speeds.length) : null,
-    trafficAmount: amount || null,
-    grade: grade as HighwayConzone['grade'],
-    gradeLabel: GRADE_LABELS[String(grade)] ?? '',
-    updatedAt: timeOf(row),
-  }))
+  return [...groups.entries()].map(([id, { rows: group, amount }]) => {
+    // 속도를 못 준 검지기(-1)는 대표가 될 수 없다 — 등급만 있고 숫자가 비면 카드가 설명되지 않는다
+    const measured = group.filter((row) => numeric(row.speed) !== null)
+    const representative =
+      [...measured].sort(
+        (a, b) =>
+          (numeric(b.grade) ?? 0) - (numeric(a.grade) ?? 0) ||
+          (numeric(a.speed) ?? 0) - (numeric(b.speed) ?? 0),
+      )[0] ?? group[0]
+
+    const speed = numeric(representative.speed)
+    const grade = numeric(representative.grade)
+
+    return {
+      id,
+      routeNo: representative.routeNo ?? '',
+      routeName: representative.routeName ?? '',
+      conzoneName: representative.conzoneName ?? '',
+      direction: directionOf(representative.updownTypeCode ?? ''),
+      speed,
+      trafficAmount: amount || null,
+      grade: grade && grade > 0 ? grade : null,
+      gradeLabel: GRADE_LABELS[String(grade)] ?? '',
+      updatedAt: timeOf(representative),
+    }
+  })
 }
 
 export async function fetchTraffic({ route, keyword, limit }: TrafficParams): Promise<HighwayTraffic> {
