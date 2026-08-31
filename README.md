@@ -119,6 +119,9 @@ npm run dev                  # http://localhost:5173 — 프런트 + /api 가 �
 | `EXDATA_API_KEY` | 서버 `/api` | ✕ | 한국도로공사. 없으면 공개 데모 키 `test` 를 쓴다 |
 | `ITS_API_KEY` | 서버 `/api` | ✕ | 국가교통정보센터. 없으면 데모 키를 쓰지만 **CCTV 반경이 적용되지 않는다** |
 
+운전 탭 인증키는 기관이 다섯 곳이고 함정이 몇 개 있다(데이터셋별 활용신청, Encoding/Decoding 키,
+오피넷의 빈 목록 응답 등). 발급 절차와 오류별 대응은 **[docs/api-keys.md](docs/api-keys.md)** 에 따로 정리했다.
+
 - `VITE_` 접두사가 붙은 값만 빌드 결과물에 포함된다. `DATABASE_URL`·`APP_PASSWORD`에는 **절대 붙이지 말 것.**
 - `VITE_APP_PASSWORD`와 `APP_PASSWORD`는 **다른 변수다.** 서버가 검증하므로 접두사 없는 쪽만 쓰인다.
 - 값에 따옴표를 붙이면 따옴표까지 비밀번호가 된다.
