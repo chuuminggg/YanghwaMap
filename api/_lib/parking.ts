@@ -17,6 +17,7 @@ import { first, optionalInt } from './upstream.js'
 
 const API_URL = 'https://api.data.go.kr/openapi/tn_pubr_prkplce_info_api'
 const SOURCE = '공공데이터포털'
+const DATASET = { name: '전국주차장정보표준데이터', id: '15012896' }
 /** 한 시군구의 주차장이 1000건을 넘는 경우는 없다. 표준데이터의 페이지 상한이기도 하다. */
 const PAGE_SIZE = '1000'
 
@@ -109,7 +110,7 @@ async function fetchPage(addressField: string, addressHint: string) {
     [addressField]: addressHint,
   }
 
-  const payload = await fetchDataGoKr<{ response?: { body?: unknown } }>(API_URL, params, SOURCE)
+  const payload = await fetchDataGoKr<{ response?: { body?: unknown } }>(API_URL, params, SOURCE, DATASET)
   return itemsOf<Row>(payload.response?.body)
 }
 

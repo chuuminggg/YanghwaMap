@@ -93,12 +93,25 @@ async function call(url: string, options: Options): Promise<Response> {
   }
 }
 
-export async function fetchUpstreamText(url: string, options: Options): Promise<string> {
+/**
+ * 상태 코드와 무관하게 본문까지 받아 온다.
+ *
+ * 기관 중에는 오류 사유를 4xx 응답의 본문에 담아 보내는 곳이 있다. 공공데이터포털이 그렇다 —
+ * 403 과 함께 `SERVICE_KEY_IS_NOT_REGISTERED_ERROR` 같은 봉투를 준다. 상태 코드만 보고
+ * 던지면 그 사유가 사라져 화면에는 'HTTP 403' 만 남는다. 사유를 읽어야 하는 쪽은 이걸 쓴다.
+ */
+export async function fetchUpstreamRaw(
+  url: string,
+  options: Options,
+): Promise<{ status: number; ok: boolean; text: string }> {
   const response = await call(url, options)
-  if (!response.ok) {
-    throw new UpstreamError(options.source, `${options.source}가 HTTP ${response.status}를 돌려줬습니다.`)
-  }
-  return response.text()
+  return { status: response.status, ok: response.ok, text: await response.text() }
+}
+
+export async function fetchUpstreamText(url: string, options: Options): Promise<string> {
+  const { status, ok, text } = await fetchUpstreamRaw(url, options)
+  if (!ok) throw new UpstreamError(options.source, `${options.source}가 HTTP ${status}를 돌려줬습니다.`)
+  return text
 }
 
 /**

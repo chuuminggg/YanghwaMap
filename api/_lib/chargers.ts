@@ -17,6 +17,7 @@ import { first, optionalInt } from './upstream.js'
 const INFO_URL = 'https://apis.data.go.kr/B552584/EvCharger/getChargerInfo'
 const STATUS_URL = 'https://apis.data.go.kr/B552584/EvCharger/getChargerStatus'
 const SOURCE = '환경부 전기차 충전소'
+const DATASET = { name: '한국환경공단_전기자동차 충전소 정보', id: '15076352' }
 /** 데이터셋이 허용하는 최대치. 시군구 하나가 이보다 많은 경우는 사실상 없다. */
 const PAGE_SIZE = '9999'
 
@@ -80,6 +81,7 @@ async function fetchStatuses(zcode: string, zscode: string): Promise<Map<string,
       STATUS_URL,
       { pageNo: '1', numOfRows: PAGE_SIZE, dataType: 'JSON', zcode, zscode, period: '10' },
       SOURCE,
+      DATASET,
     )
     const rows = itemsOf<Row>(payload.response?.body ?? payload)
     return new Map(rows.map((row) => [`${text(row.statId)}:${text(row.chgerId)}`, row]))
@@ -123,6 +125,7 @@ export async function findNearbyChargers({
         zscode: region.zscode,
       },
       SOURCE,
+      DATASET,
     ),
     fetchStatuses(region.zcode, region.zscode),
   ])
