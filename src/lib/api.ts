@@ -4,6 +4,8 @@ import type {
   HighwayCctvResult,
   HighwayTraffic,
   ParkingResult,
+  SubsidyModelResult,
+  SubsidyResult,
 } from '../types/drive'
 import type { Restaurant, RestaurantDraft } from '../types/restaurant'
 import type { DistrictCount, NearbyRestroom, Restroom } from '../types/restroom'
@@ -169,6 +171,14 @@ export const listCheapGas = (params: {
   limit?: number
   product?: string
 }) => request<GasResult>(`/api/drive/gas?${query({ ...params })}`)
+
+/** 지자체별 전기차 보조금 지급현황. 161곳뿐이라 통째로 받아 두고 필터는 화면에서 건다. */
+export const listSubsidyStatus = (params: { vehicle?: string; year?: number }) =>
+  request<SubsidyResult>(`/api/drive/subsidy?${query({ ...params })}`)
+
+/** 지자체 하나의 모델별 보조금. 카드를 펼칠 때만 부른다. */
+export const listSubsidyModels = (params: { localCode: string; vehicle?: string; year?: number }) =>
+  request<SubsidyModelResult>(`/api/drive/subsidy?${query({ kind: 'models', ...params })}`)
 
 /** 서버가 가진 APP_PASSWORD와 대조한다. 실패 사유는 ApiError 메시지에 담겨 온다. */
 export const verifyPassword = (candidate: string) =>

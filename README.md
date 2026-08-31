@@ -1,6 +1,7 @@
 # YanghwaMap
 
-내가 가본 맛집을 **구역별로 정리**하고, 급할 때 **근처 공중화장실**을 찾는 모바일 우선 웹앱.
+내가 가본 맛집을 **구역별로 정리**하고, 급할 때 **근처 공중화장실**을 찾고,
+운전 중에 필요한 **주유소·주차장·충전소·고속도로·보조금**을 한 탭에서 조회하는 모바일 우선 웹앱.
 
 원본은 개인 엑셀 목록이었다. 구/동이 한 칸에 뒤섞여 있고 주소도 좌표도 없어서 지도에 찍을 수 없었다.
 이걸 파싱해 PostgreSQL(Neon)에 넣고, 카카오맵 장소 검색으로 주소·좌표를 채워 넣는 앱으로 만들었다.
@@ -9,8 +10,13 @@
 ```
 브라우저 (React SPA)  ──fetch──▶  /api (Vercel Serverless)  ──▶  PostgreSQL (Neon)
       │                                    │
-      └── 카카오맵 SDK (지도·장소검색)         └── 카카오 REST API (주소 → 좌표)
+      │                                    ├── 카카오 REST API (주소 → 좌표, 좌표 → 행정구역)
+      └── 카카오맵 SDK (지도·장소검색)         └── 공공 API (오피넷 · 공공데이터포털 · 도로공사 · ITS · 환경부)
 ```
+
+맛집·화장실은 우리 DB에 있고, 운전 탭은 저장하지 않는다 — 요청 때마다 원본 기관을 부르고
+CDN 캐시(`Cache-Control`)로만 아낀다. 브라우저가 직접 부를 수 없는 이유는 셋이다:
+CORS를 열어 주는 기관이 없고, 인증키가 노출되며, 응답이 크다(도로공사 소통 정보는 한 번에 8천 행·1.5MB).
 
 ---
 
@@ -39,10 +45,33 @@
 | **지도 연동** | 마커 클릭 → 목록 항목으로 스크롤, 목록 선택 → 지도 이동 + 인포윈도우 |
 | **상세 정보** | 개방시간, 남/녀 변기 수, 장애인용, 기저귀 교환대, 비상벨, CCTV, 관리기관 |
 
+### 운전
+
+기능마다 헤더 탭을 늘리면 좁은 화면에서 넘치므로 `/drive` 안에서 하위 칩으로 나눈다.
+위치는 화면이 한 번만 잡아 패널들에 넘기고, 위치가 필요 없는 보조금 탭에서는 권한 창을 띄우지 않는다.
+
+| 탭 | 출처 | 설명 |
+|---|---|---|
+| **주유소** | 오피넷 | 반경 안에서 유종별(휘발유·경유·고급·LPG) 가격순. 최저가와의 차이를 함께 표시. 상위 5곳은 상세(셀프·세차장·경정비·품질인증)까지 채운다 |
+| **주차장** | 공공데이터포털 | 시군구 단위로 받아 반경·거리순 정렬. 공영만/민영 포함 전환, 기본요금·구획수·평일 운영시간 |
+| **충전소** | 환경부 | 충전기 단위 응답을 충전소로 묶어 `충전 가능 n/m대`. 급속 여부·커넥터 종류·주차무료·이용제한 |
+| **고속도로** | 도로공사 · ITS | 콘존별 소통(원활/서행/정체·평균속도)을 막히는 순으로. CCTV는 지도에 찍고 스트림 주소를 복사 |
+| **보조금** | 환경부 | 지자체별 공고·접수·출고·출고잔여와 모델별 국비/지방비. 차종·시도·이름으로 필터 |
+
+밝혀 두는 한계 — 화면 하단에도 같은 내용을 적어 둔다:
+
+- 주차장 표준데이터에는 **실시간 잔여 면수·만차 여부가 없다.** 있는 척하지 않는다
+- 출고잔여는 `공고 − 출고`일 뿐이라 실제 신청 가능 대수와 다르다. **잔여가 남아도 비고가 마감이면 마감으로 표시**한다
+- 오피넷은 인증키가 거부돼도 오류가 아니라 **빈 목록**을 준다. '반경 안에 없음'과 구분할 수 없어 빈 화면에서 두 가능성을 함께 알린다
+- ITS 공개 데모 키는 **좌표 범위를 무시하고 늘 같은 표본 20건**을 준다. 그때는 반경으로 자르지 않고 '표본'이라고 밝힌다 (개인 키를 넣으면 실제 반경이 적용된다)
+- CCTV 주소는 서명된 HLS라 만료되고 `http`라서 이 화면에서 재생할 수 없다. 복사해 외부 플레이어로 연다
+
 ### 공통
 
 - **비밀번호 잠금** — 첫 화면이 로그인. 검증은 서버(`APP_PASSWORD`)가 하므로 빌드 결과물에 비밀번호가 들어가지 않는다. 읽기는 공개, 쓰기는 인증 필요
-- **키 없이도 죽지 않음** — 카카오 앱 키가 없으면 지도 영역에만 안내 문구가 뜨고 목록·필터·검색은 그대로 동작한다
+- **키 없이도 죽지 않음** — 카카오 앱 키가 없으면 지도 영역에만 안내 문구가 뜨고 목록·필터·검색은 그대로 동작한다.
+  운전 탭도 마찬가지로 인증키가 없는 하위 탭만 `503` + 발급 안내로 끝나고 나머지 탭은 정상 동작한다
+  (고속도로와 보조금은 키 없이도 동작한다)
 
 ---
 
@@ -84,7 +113,11 @@ npm run dev                  # http://localhost:5173 — 프런트 + /api 가 �
 | `VITE_KAKAO_MAP_APP_KEY` | 클라이언트 | △ | 카카오맵 **JavaScript** 키. 없으면 지도만 비활성 |
 | `DATABASE_URL` | 서버 `/api` | ✅ | Postgres 연결 문자열 (`POSTGRES_URL`도 인식) |
 | `APP_PASSWORD` | 서버 `/api` | ✅ | 로그인 및 쓰기 검증용 공유 비밀번호 |
-| `KAKAO_REST_API_KEY` | 서버 `/api` + 스크립트 | △ | 카카오 **REST API** 키. 화장실 좌표 채우기에만 사용 |
+| `KAKAO_REST_API_KEY` | 서버 `/api` + 스크립트 | △ | 카카오 **REST API** 키. 화장실 좌표 채우기 + 운전 탭의 좌표 → 행정구역 변환 |
+| `DATA_GO_KR_API_KEY` | 서버 `/api` | △ | 공공데이터포털. 주차장·충전소 탭. 데이터셋별 활용신청 필요 |
+| `OPINET_API_KEY` | 서버 `/api` | △ | 오피넷. 주유소 탭 |
+| `EXDATA_API_KEY` | 서버 `/api` | ✕ | 한국도로공사. 없으면 공개 데모 키 `test` 를 쓴다 |
+| `ITS_API_KEY` | 서버 `/api` | ✕ | 국가교통정보센터. 없으면 데모 키를 쓰지만 **CCTV 반경이 적용되지 않는다** |
 
 - `VITE_` 접두사가 붙은 값만 빌드 결과물에 포함된다. `DATABASE_URL`·`APP_PASSWORD`에는 **절대 붙이지 말 것.**
 - `VITE_APP_PASSWORD`와 `APP_PASSWORD`는 **다른 변수다.** 서버가 검증하므로 접두사 없는 쪽만 쓰인다.
@@ -139,12 +172,28 @@ api/                          Vercel Serverless Functions (파일 기반 라우�
   _lib/auth.ts                비밀번호 검증(timingSafeEqual) + 공통 오류 응답
   _lib/restrooms.ts           자치구별 목록, 근처 조회(bbox + haversine), 쿼리 파싱
   _lib/geocode.ts             카카오 주소검색 배치 지오코딩 (서버 측)
+  _lib/upstream.ts            외부 API 공통 호출 (브라우저 UA·타임아웃·502/503 구분)
+  _lib/datagokr.ts            공공데이터포털 공통 (두 가지 오류 봉투 해석, 안내 문구 변환)
+  _lib/katec.ts               WGS84 ↔ KATEC 양방향 변환 (오피넷 좌표계)
+  _lib/region.ts              좌표 → 시도/시군구 + zcode/zscode
+  _lib/geo.ts                 서버 haversine
+  _lib/gas.ts                 오피넷 반경 검색 + 상세
+  _lib/parking.ts             주차장 표준데이터
+  _lib/chargers.ts            전기차 충전소 정보 + 상태 병합
+  _lib/highway.ts             도로공사 소통 + ITS CCTV
+  _lib/pnp.ts                 ev.or.kr pnp4web 보호 해제 (eval 없이 문자표만 읽어 직접 디코딩)
+  _lib/subsidy.ts             전기차 보조금 지급현황 + 모델별 보조금
   login.ts                    POST   /api/login
   restaurants/index.ts        GET·POST      /api/restaurants
   restaurants/[id].ts         PATCH·DELETE  /api/restaurants/:id
   restrooms/index.ts          GET    /api/restrooms
   restrooms/districts.ts      GET    /api/restrooms/districts
   restrooms/geocode.ts        POST   /api/restrooms/geocode
+  drive/gas.ts                GET    /api/drive/gas
+  drive/parking.ts            GET    /api/drive/parking
+  drive/chargers.ts           GET    /api/drive/chargers
+  drive/highway.ts            GET    /api/drive/highway
+  drive/subsidy.ts            GET    /api/drive/subsidy
 
 src/
   App.tsx                     라우터 정의 (RequireAuth → Layout → 페이지)
@@ -204,6 +253,16 @@ scripts/
 | `GET` | `/api/restrooms?lat=&lng=` | 공개 | 거리순. `radius`(100~5000, 기본 1000), `limit`(1~100, 기본 30) |
 | `GET` | `/api/restrooms/districts` | 공개 | 자치구별 `total` / `located` 집계 |
 | `POST` | `/api/restrooms/geocode?district=` | 필요 | 좌표 채우기 한 배치. `retry=1`이면 실패분 재시도 |
+| `GET` | `/api/drive/gas?lat=&lng=` | 공개 | 가격순 주유소. `radius`(500~5000, 기본 3000), `product`(B027 휘발유 / D047 경유 / B034 / K015) |
+| `GET` | `/api/drive/parking?lat=&lng=` | 공개 | 거리순 주차장. `radius`(300~5000, 기본 1500), `publicOnly=0`이면 민영 포함 |
+| `GET` | `/api/drive/chargers?lat=&lng=` | 공개 | 거리순 충전소. `radius`(300~5000, 기본 2000), `availableOnly=1`이면 충전 가능만 |
+| `GET` | `/api/drive/highway?kind=traffic` | 공개 | 콘존별 소통. `route`(노선명/번호), `keyword`, `limit`(5~100, 기본 30) |
+| `GET` | `/api/drive/highway?kind=cctv&lat=&lng=` | 공개 | 거리순 CCTV. `radius`(2000~30000, 기본 10000), `roadType`(ex/its/all) |
+| `GET` | `/api/drive/subsidy` | 공개 | 지자체별 보조금 현황. `vehicle`(passenger/cargo/bus), `year` |
+| `GET` | `/api/drive/subsidy?kind=models&localCode=` | 공개 | 그 지자체의 모델별 국비/지방비 |
+
+외부 기관이 실패하면 `502`, 인증키가 없어 호출조차 못 하면 `503` 으로 구분한다.
+`503` 메시지에는 어디서 키를 발급받는지가 들어 있어 화면에 그대로 띄울 수 있다.
 
 ### 요청/응답 예시
 

@@ -3,6 +3,7 @@ import { ChargerPanel } from '../components/drive/ChargerPanel'
 import { GasPanel } from '../components/drive/GasPanel'
 import { HighwayPanel } from '../components/drive/HighwayPanel'
 import { ParkingPanel } from '../components/drive/ParkingPanel'
+import { SubsidyPanel } from '../components/drive/SubsidyPanel'
 import { chipClass } from '../components/drive/styles'
 import { useCurrentPosition } from '../hooks/useCurrentPosition'
 
@@ -17,6 +18,7 @@ const TABS = [
   { key: 'parking', label: '주차장', needsPosition: true },
   { key: 'charger', label: '충전소', needsPosition: true },
   { key: 'highway', label: '고속도로', needsPosition: true },
+  { key: 'subsidy', label: '보조금', needsPosition: false },
 ] as const
 
 type TabKey = (typeof TABS)[number]['key']
@@ -31,7 +33,7 @@ export function DrivePage() {
 
   return (
     <div className="flex h-[calc(100dvh-57px)] flex-col">
-      <div className="-mx-0 overflow-x-auto border-b border-stone-200 bg-stone-50 px-4 py-3">
+      <div className="overflow-x-auto border-b border-stone-200 bg-stone-50 px-4 py-3">
         <div className="flex gap-1.5">
           {TABS.map((item) => (
             <button
@@ -56,6 +58,7 @@ export function DrivePage() {
       {tab === 'highway' && (
         <HighwayPanel origin={origin} position={position} onRefreshPosition={refresh} />
       )}
+      {tab === 'subsidy' && <SubsidyPanel />}
     </div>
   )
 }

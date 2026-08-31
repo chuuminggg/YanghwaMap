@@ -244,3 +244,85 @@ export const priceGap = (station: GasStation, cheapest: number | null) =>
   station.price !== null && cheapest !== null && station.price > cheapest
     ? `+${(station.price - cheapest).toLocaleString('ko-KR')}`
     : ''
+
+/**
+ * 지자체 한 곳의 전기차 구매보조금 지급현황.
+ * 서울처럼 시 단위로 한 건만 공고하는 곳은 자치구별로 나뉘지 않는다.
+ */
+export type SubsidyRegion = {
+  localCode: string
+  /** '서울', '경기' */
+  sido: string
+  /** '서울특별시', '화성시' */
+  name: string
+  /** '전기승용' */
+  vehicleLabel: string
+  /** 민간공고대수 */
+  noticeCount: number | null
+  /** 접수대수 */
+  receivedCount: number | null
+  /** 출고대수 */
+  releasedCount: number | null
+  /** 출고잔여 = 공고 − 출고 */
+  remainingCount: number | null
+  /** 선정잔여 = 공고 − 선정. 비어 있는 지자체가 많다. */
+  selectionRemaining: number | null
+  /** 접수 방식 ('일반: 출고등록순') */
+  acceptMethod: string
+  /** 지자체 비고. 마감 공지가 여기 들어온다. */
+  note: string
+  /**
+   * 잔여 대수만으로 판단하지 않는다 — 비고가 마감을 알리면 잔여가 남아도 '마감'이다.
+   * 실제 신청 가능 대수는 공식 지급현황이 제공하지 않는다.
+   */
+  status: '잔여있음' | '잔여없음' | '마감' | '확인필요'
+}
+
+export type SubsidyResult = {
+  year: number
+  vehicle: string
+  vehicleLabel: string
+  /** 시도 칩 목록 — 응답에 실제로 있는 값으로만 만든다 */
+  sidoList: string[]
+  items: SubsidyRegion[]
+}
+
+/** 지자체 하나의 세부 모델별 보조금 (원 단위로 환산해 둔다) */
+export type SubsidyModel = {
+  maker: string
+  model: string
+  /** '일반승용', '경·소형' */
+  category: string
+  /** 국비 */
+  nationalKrw: number | null
+  /** 지방비 */
+  localKrw: number | null
+  totalKrw: number | null
+}
+
+export type SubsidyModelResult = {
+  localCode: string
+  vehicleLabel: string
+  year: number
+  items: SubsidyModel[]
+}
+
+export const subsidyTone = (status: SubsidyRegion['status']) =>
+  status === '잔여있음'
+    ? 'bg-emerald-50 text-emerald-700'
+    : status === '마감'
+      ? 'bg-red-50 text-red-700'
+      : status === '잔여없음'
+        ? 'bg-amber-50 text-amber-700'
+        : 'bg-stone-100 text-stone-500'
+
+/** 보조금 금액은 만원 단위로 읽는 게 관례다 (1,912만원) */
+export const manwonLabel = (krw: number | null) =>
+  krw === null ? '—' : `${Math.round(krw / 10_000).toLocaleString('ko-KR')}만원`
+
+/** 차종 선택 칩 */
+export const SUBSIDY_VEHICLES = [
+  { key: 'passenger', label: '승용' },
+  { key: 'cargo', label: '화물' },
+  { key: 'bus', label: '승합' },
+] as const
