@@ -16,6 +16,7 @@ import { useRestaurantStore } from '../store/useRestaurantStore'
 const TABS = [
   { to: '/', label: '목록', end: true, icon: 'M4 6h16M4 12h16M4 18h10' },
   { to: '/map', label: '지도', icon: 'M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11Z M12 11.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z' },
+  { to: '/recommend', label: '추천', icon: 'M12 3.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8-5.3-2.8-5.3 2.8 1-5.8-4.2-4.1 5.9-.9L12 3.5Z' },
   { to: '/restroom', label: '화장실', icon: 'M7 3.5a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2Z M4.8 20.5V14H3.6l1.6-5.3h3.6L10.4 14H9.2v6.5H4.8Z M17 3.5a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2Z M14 14.5l1.6-6h2.8l1.6 6h-2l.4 6h-2.8l.4-6h-2Z' },
   { to: '/drive', label: '운전', icon: 'M5 16.5h14M6.5 16.5v2H5v-2M19 16.5v2h-1.5v-2M4.5 16.5l1.4-5.2A2 2 0 0 1 7.8 9.8h8.4a2 2 0 0 1 1.9 1.5l1.4 5.2M8 13h8' },
 ]

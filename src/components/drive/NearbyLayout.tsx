@@ -17,6 +17,7 @@ export function NearbyLayout({
   onMarkerClick,
   children,
   footer,
+  listFirst = false,
 }: {
   /** 필터 칩 · 위치 버튼 · 안내 한 줄 */
   controls: ReactNode
@@ -27,6 +28,12 @@ export function NearbyLayout({
   /** 목록 본문. 보통 <PanelBody> 로 감싼다. */
   children: ReactNode
   footer: string
+  /**
+   * 목록을 지도보다 크게 잡는다(2:3). 기본은 지도가 큰 3:2다.
+   * 주유소·주차장처럼 '어디 있나'가 중요한 화면은 지도를, 추천처럼 '무엇을 고를까'가
+   * 중요한 화면은 목록을 넓게 쓴다.
+   */
+  listFirst?: boolean
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -34,13 +41,15 @@ export function NearbyLayout({
 
       <KakaoMap
         markers={markers}
-        className="min-h-0 flex-[3]"
+        className={`min-h-0 ${listFirst ? 'flex-[2]' : 'flex-[3]'}`}
         origin={origin}
         selectedId={selectedId}
         onMarkerClick={onMarkerClick}
       />
 
-      <div className="min-h-0 flex-[2] overflow-y-auto border-t border-stone-200 bg-stone-50 px-4 py-3">
+      <div
+        className={`min-h-0 ${listFirst ? 'flex-[3]' : 'flex-[2]'} overflow-y-auto border-t border-stone-200 bg-stone-50 px-4 py-3`}
+      >
         {children}
       </div>
 

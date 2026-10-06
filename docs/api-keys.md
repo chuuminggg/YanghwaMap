@@ -1,6 +1,6 @@
-# 운전 탭 API 키 발급 가이드
+# 외부 API 키 발급 가이드
 
-운전 탭(`/drive`)은 우리 DB가 아니라 외부 기관 API를 그때그때 부른다. 기관마다 인증키가 따로라
+운전 탭(`/drive`)과 추천 탭(`/recommend`)은 우리 DB가 아니라 외부 API를 그때그때 부른다. 기관마다 인증키가 따로라
 **키가 없는 탭만 안내 문구로 끝나고 나머지 탭은 그대로 동작한다.** 필요한 것부터 하나씩 채우면 된다.
 
 이 문서의 링크와 동작은 **2026-09-12에 직접 확인**했다. 기관 사이트는 개편이 잦으니
@@ -16,7 +16,8 @@
 | `OPINET_API_KEY` | 주유소 | ✅ | [오피넷](https://www.opinet.co.kr/user/custapi/openApiInfo.do) | 담당자 검토 |
 | `ITS_API_KEY` | 고속도로 CCTV | △ | [ITS 국가교통정보센터](https://www.its.go.kr/opendata/opendataList?service=cctv) | 즉시 |
 | `EXDATA_API_KEY` | 고속도로 소통 | ✕ | [고속도로 공공데이터 포털](https://data.ex.co.kr/openapi/intro/introduce01) | 즉시 |
-| `KAKAO_REST_API_KEY` | 주차장, 충전소 (좌표 → 시군구) | ✅ | [카카오 개발자센터](https://developers.kakao.com) | 즉시 |
+| `KAKAO_REST_API_KEY` | 주차장, 충전소, 추천 (좌표 → 역·시군구) | ✅ | [카카오 개발자센터](https://developers.kakao.com) | 즉시 |
+| `PLAYMCP_REFRESH_TOKEN` | 추천 | ✅ | [PlayMCP 도구함](https://playmcp.kakao.com/toolbox) | 즉시 (로그인 필요) |
 
 - ✅ 없으면 그 탭이 `503` + 발급 안내로 끝난다
 - △ 데모 키로도 뜨긴 하지만 **반경이 적용되지 않는다** (아래 ITS 항목 참고)
@@ -125,6 +126,56 @@ Decoding : abc+def/ghi==              ← + / = 가 그대로 보인다
 
 ---
 
+## 5. PLAYMCP_REFRESH_TOKEN — 카카오 PlayMCP (추천 탭)
+
+추천 탭이 쓰는 [맛집검색 MCP 서버](https://playmcp.kakao.com/mcp/200)는 공개 주소가 없다.
+`https://playmcp.kakao.com/mcp` 게이트웨이를 거쳐야 하고, 게이트웨이는 **PlayMCP 계정의
+OAuth 토큰**을 요구한다. 그래서 다른 기관처럼 '키 문자열 하나'가 아니라 계정 연결에 가깝다.
+
+### 발급
+
+1. [playmcp.kakao.com](https://playmcp.kakao.com) 에 카카오 계정으로 로그인
+2. **맛집검색**([mcp/200](https://playmcp.kakao.com/mcp/200))을 찾아 **도구함에 담기**
+3. [도구함](https://playmcp.kakao.com/toolbox) 에서 **`OpenClaw와 연결`** 을 누른다
+4. 생성된 프롬프트 안의 `oneTimeToken: ...` 값을 복사해 아래를 실행한다
+
+```bash
+npm run playmcp:token -- <oneTimeToken>
+```
+
+이 명령이 토큰을 교환해 DB(`oauth_tokens`)에 넣는다. 환경 변수에 손대지 않아도 된다.
+로컬과 배포가 같은 Neon DB를 보므로 한 번만 하면 양쪽 다 동작한다.
+
+### 함정 ①: oneTimeToken 은 이름 그대로 1회용이다
+
+한 번 교환하면 그 자리에서 죽는다. 교환 결과를 잃어버렸다면 도구함에서 새로 만들어야 한다.
+(`400` 이 돌아오면 이미 쓴 토큰이다.)
+
+### 함정 ②: 리프레시 토큰은 갱신할 때마다 값이 바뀐다
+
+액세스 토큰은 12시간, 리프레시 토큰은 3개월짜리인데 **갱신(rotation)할 때마다 리프레시 토큰
+자체가 새 값으로 바뀌고 이전 값은 죽는다.** 그래서 이 토큰만은 환경 변수에 둘 수 없다 —
+첫 갱신 직후부터 환경 변수에 적힌 값은 맞지 않는다. 서버는 DB 값을 먼저 보고, 비어 있을 때만
+`PLAYMCP_REFRESH_TOKEN` 을 씨앗으로 한 번 쓴다.
+
+같은 이유로 **토큰 한 벌을 여러 클라이언트가 나눠 쓸 수 없다.** mcporter 같은 다른 MCP 클라이언트에
+같은 토큰을 물려 두면, 한쪽이 갱신하는 순간 다른 쪽이 죽는다. 각자 도구함에서 따로 발급받으면 된다.
+
+### 함정 ③: 호출 한도는 초당 3회다
+
+게이트웨이가 토큰 버킷으로 막는다(`x-ratelimit-burst-capacity: 15`, `replenish-rate: 3`).
+추천 화면 한 번이 다섯 번쯤 부르므로 평소에는 남지만, 새로고침을 연달아 하면 `429` 가 난다.
+서버는 한 번 쉬었다 다시 보내고, 그래도 막히면 '잠시 후 다시'라고 알린다.
+
+### 함정 ④: 지역 이름을 가린다
+
+도구는 좌표를 받지 않고 `합정역 맛집` 같은 문자열만 받는데, 어떤 이름을 주느냐로 결과가 갈린다.
+직접 확인해 보니 `합정역 맛집` 은 되고 `합정동 맛집`·`마포구 맛집` 은 `Top3 후보를 만들지
+못했습니다` 로 끝났다(`서울 마포구 합정동 맛집` 은 된다). 그래서 서버는 **가까운 지하철역 이름**을
+먼저 쓰고, 역이 없을 때만 `시도 시군구 동` 으로 넘어간다.
+
+---
+
 ## 넣는 곳
 
 ### 로컬
@@ -169,6 +220,9 @@ curl -s "http://localhost:5173/api/drive/subsidy?vehicle=passenger"
 curl -s "http://localhost:5173/api/drive/gas?lat=37.5495&lng=126.9137&radius=3000"
 curl -s "http://localhost:5173/api/drive/parking?lat=37.5495&lng=126.9137&radius=1500"
 curl -s "http://localhost:5173/api/drive/chargers?lat=37.5495&lng=126.9137&radius=2000"
+
+# 추천 탭 — regions 에 역 이름이, places 에 목록이 있어야 한다
+curl -s "http://localhost:5173/api/recommend?lat=37.5495&lng=126.9137"
 ```
 
 기대 결과:
@@ -194,6 +248,10 @@ curl -s "http://localhost:5173/api/drive/chargers?lat=37.5495&lng=126.9137&radiu
 | `공개 데모 키라 반경이 적용되지 않습니다` | ITS 개인 키 없음 | `ITS_API_KEY` 발급 |
 | `카카오 인증에 실패했습니다` | REST API 키 문제 | JavaScript 키가 아닌 **REST API 키**인지, 카카오맵/로컬 API 사용 설정이 켜져 있는지 확인 |
 | `현재 위치의 행정구역을 찾지 못했습니다` | 국내 좌표가 아님 | 국내에서 조회하거나 위치 권한 확인 |
+| `PLAYMCP_REFRESH_TOKEN가 설정되지 않았습니다` | 추천 탭 토큰 없음 | `npm run playmcp:token -- <oneTimeToken>` 실행 |
+| `토큰이 만료됐거나 이미 갱신돼 죽었습니다` | 리프레시 토큰 회수됨 (다른 클라이언트가 먼저 갱신했거나 3개월 경과) | 도구함에서 새 oneTimeToken 을 받아 위 명령을 다시 실행 |
+| `PlayMCP 호출 한도에 걸렸습니다` | 초당 3회 제한 | 몇 초 뒤 다시 조회 |
+| 추천이 `후보를 만들지 못했습니다` 로 비어 있음 | 그 지역 이름으로는 도구가 후보를 못 만든다 | 키워드를 바꾸거나 다른 역 근처에서 시도 (위 함정 ④) |
 
 ---
 

@@ -79,6 +79,19 @@ await sql`create index if not exists restrooms_district_idx on restrooms (distri
 // 관리번호가 비어 있는 행이 있어 부분 인덱스로 건다
 await sql`create unique index if not exists restrooms_code_idx on restrooms (code) where code <> ''`
 
+// 외부 서비스의 OAuth 토큰. 지금은 '추천' 탭이 쓰는 PlayMCP 하나뿐이다.
+// 리프레시 토큰은 갱신할 때마다 값이 바뀌어(rotation) 환경 변수에 둘 수 없다 —
+// 환경 변수의 값은 씨앗으로 한 번만 쓰이고, 이후 최신 값은 이 테이블에 남는다.
+await sql`
+  create table if not exists oauth_tokens (
+    provider          text primary key,
+    access_token      text not null,
+    access_expires_at timestamptz not null,
+    refresh_token     text not null,
+    updated_at        timestamptz not null default now()
+  )
+`
+
 const [{ count }] = await sql`select count(*)::int as count from restaurants`
 const [{ restrooms }] = await sql`select count(*)::int as restrooms from restrooms`
 console.log(`restaurants 테이블 준비 완료 (현재 ${count}건)`)

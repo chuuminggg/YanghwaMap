@@ -7,6 +7,7 @@ import type {
   SubsidyModelResult,
   SubsidyResult,
 } from '../types/drive'
+import type { RecommendResult } from '../types/recommend'
 import type { Restaurant, RestaurantDraft } from '../types/restaurant'
 import type { DistrictCount, NearbyRestroom, Restroom } from '../types/restroom'
 
@@ -179,6 +180,13 @@ export const listSubsidyStatus = (params: { vehicle?: string; year?: number }) =
 /** 지자체 하나의 모델별 보조금. 카드를 펼칠 때만 부른다. */
 export const listSubsidyModels = (params: { localCode: string; vehicle?: string; year?: number }) =>
   request<SubsidyModelResult>(`/api/drive/subsidy?${query({ kind: 'models', ...params })}`)
+
+/**
+ * 현재 위치 근처의 맛집 추천 (PlayMCP 맛집검색).
+ * 내 목록이 아니라 외부 추천이라 저장하지 않고 열 때마다 받는다.
+ */
+export const listRecommendations = (params: { lat: number; lng: number; keyword?: string }) =>
+  request<RecommendResult>(`/api/recommend?${query({ ...params, keyword: params.keyword || null })}`)
 
 /** 서버가 가진 APP_PASSWORD와 대조한다. 실패 사유는 ApiError 메시지에 담겨 온다. */
 export const verifyPassword = (candidate: string) =>

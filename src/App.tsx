@@ -8,6 +8,7 @@ import { ListPage } from './pages/ListPage'
 import { LoginPage } from './pages/LoginPage'
 import { MapPage } from './pages/MapPage'
 import { NewPage } from './pages/NewPage'
+import { RecommendPage } from './pages/RecommendPage'
 import { RestroomPage } from './pages/RestroomPage'
 
 const router = createBrowserRouter([
@@ -21,6 +22,7 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <ListPage /> },
           { path: 'map', element: <MapPage /> },
+          { path: 'recommend', element: <RecommendPage /> },
           { path: 'restroom', element: <RestroomPage /> },
           { path: 'drive', element: <DrivePage /> },
           { path: 'new', element: <NewPage /> },

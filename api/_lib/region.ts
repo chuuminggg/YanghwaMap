@@ -17,6 +17,8 @@ export type Region = {
   sido: string
   /** '마포구'. 세종처럼 시군구가 없는 곳은 빈 문자열이다. */
   sigungu: string
+  /** '합정동'. 추천 탭이 역 이름을 못 찾았을 때 검색어로 쓴다. */
+  dong: string
   /** 법정동 코드 10자리 */
   code: string
   /** 시도 코드 2자리 — 전기차 충전소 API의 zcode */
@@ -32,6 +34,7 @@ type Document = {
   code: string
   region_1depth_name: string
   region_2depth_name: string
+  region_3depth_name: string
 }
 
 export async function resolveRegion(lat: number, lng: number): Promise<Region> {
@@ -62,6 +65,7 @@ export async function resolveRegion(lat: number, lng: number): Promise<Region> {
   return {
     sido: doc.region_1depth_name,
     sigungu,
+    dong: doc.region_3depth_name ?? '',
     code: doc.code,
     zcode: doc.code.slice(0, 2),
     zscode: doc.code.slice(0, 5),

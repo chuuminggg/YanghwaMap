@@ -14,7 +14,8 @@
     "restaurants:geocode": "node --env-file=.env.local scripts/restaurant-geocode.mjs",
     "db:setup": "node --env-file=.env.local scripts/db-setup.mjs",
     "db:seed": "node --env-file=.env.local scripts/db-seed.mjs",
-    "db:seed:restrooms": "node --env-file=.env.local scripts/db-seed-restrooms.mjs"
+    "db:seed:restrooms": "node --env-file=.env.local scripts/db-seed-restrooms.mjs",
+    "playmcp:token": "node --env-file=.env.local scripts/playmcp-token.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
