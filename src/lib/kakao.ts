@@ -71,15 +71,36 @@ export async function searchPlaces(
   })
 }
 
-/** 검색 결과를 Restaurant 필드로 변환 (상호는 덮어쓰지 않고 호출부가 선택하도록 별도 반환) */
+/**
+ * 지번 주소("서울 강남구 대치동 316")에서 구·동을 뽑는다.
+ * 도로명 주소에는 동이 없으므로 반드시 address_name(지번)을 넘긴다.
+ * 구가 없는 시·군("경기 가평군 …")은 시·군을 구 자리에 쓴다.
+ */
+export function parseRegion(jibunAddress: string): { district: string; dong: string } {
+  const tokens = jibunAddress.trim().split(/\s+/).slice(1) // 첫 토큰은 시·도
+  let districtIdx = tokens.findIndex((t) => /구$/.test(t))
+  if (districtIdx < 0) districtIdx = tokens.findIndex((t) => /[시군]$/.test(t))
+  if (districtIdx < 0) return { district: '', dong: '' }
+
+  const dong = tokens.slice(districtIdx + 1).find((t) => /[동가읍면리]$/.test(t) && !/^\d/.test(t))
+  return { district: tokens[districtIdx], dong: dong ?? '' }
+}
+
+/** 검색 결과를 Restaurant 필드로 변환 (상호·메뉴는 덮어쓰지 않고 호출부가 선택하도록 별도 반환) */
 export function placeToPatch(place: kakao.maps.services.PlaceResult) {
+  const { district, dong } = parseRegion(place.address_name)
   return {
     suggestedName: place.place_name,
+    /** 카테고리 마지막 단계 ("음식점 > 한식 > 설렁탕" -> "설렁탕") */
+    suggestedMenu: place.category_name.split('>').pop()?.trim() ?? '',
     patch: {
       address: place.road_address_name || place.address_name,
       lat: Number(place.y),
       lng: Number(place.x),
       kakaoPlaceUrl: place.place_url,
+      // 파싱에 실패하면 기존 값을 지우지 않는다
+      ...(district && { district }),
+      ...(dong && { dong }),
     } satisfies Partial<Restaurant>,
   }
 }

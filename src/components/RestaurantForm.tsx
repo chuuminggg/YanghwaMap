@@ -16,7 +16,7 @@ const labelClass = 'block text-sm font-medium text-stone-700'
 const inputClass =
   'mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500'
 
-/** 등록/수정 공용 폼. '주소 찾기'로 주소·좌표·카카오맵 링크를 한 번에 채운다. */
+/** 등록/수정 공용 폼. '주소 찾기'로 주소·구·동·좌표·카카오맵 링크를 한 번에 채운다. */
 export function RestaurantForm({ initial, submitLabel, onSubmit, onDelete }: Props) {
   const navigate = useNavigate()
   const [draft, setDraft] = useState<RestaurantDraft>(initial ?? emptyDraft())
@@ -28,12 +28,13 @@ export function RestaurantForm({ initial, submitLabel, onSubmit, onDelete }: Pro
     setDraft((prev) => ({ ...prev, [key]: value }))
 
   const handleSelectPlace = (place: kakao.maps.services.PlaceResult) => {
-    const { suggestedName, patch } = placeToPatch(place)
+    const { suggestedName, suggestedMenu, patch } = placeToPatch(place)
     setDraft((prev) => ({
       ...prev,
       ...patch,
-      // 상호를 아직 안 적었으면 검색 결과 이름을 그대로 쓴다
+      // 상호·메뉴를 아직 안 적었으면 검색 결과 값을 그대로 쓴다
       name: prev.name.trim() || suggestedName,
+      menu: prev.menu.trim() || suggestedMenu,
     }))
     setSearchOpen(false)
   }
