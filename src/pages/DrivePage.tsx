@@ -32,7 +32,7 @@ export function DrivePage() {
   const origin = position.status === 'locating' ? null : position.origin
 
   return (
-    <div className="flex h-[calc(100dvh-57px)] flex-col">
+    <div className="flex h-full flex-col">
       <div className="overflow-x-auto border-b border-stone-200 bg-stone-50 px-4 py-3">
         <div className="flex gap-1.5">
           {TABS.map((item) => (

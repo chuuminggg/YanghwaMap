@@ -86,7 +86,7 @@ export function MapPage() {
   const missing = shown - markers.length
 
   return (
-    <div className="flex h-[calc(100dvh-57px)] flex-col">
+    <div className="flex h-full flex-col">
       <div className="space-y-2 border-b border-stone-200 bg-stone-50 px-4 py-3">
         <FilterBar compact showNearby />
         {nearby && (

@@ -147,7 +147,7 @@ export function RestroomPage() {
   }
 
   return (
-    <div className="flex h-[calc(100dvh-57px)] flex-col">
+    <div className="flex h-full flex-col">
       <div className="space-y-2 border-b border-stone-200 bg-stone-50 px-4 py-3">
         <div className="flex items-center gap-2">
           <div className="flex flex-1 gap-1 rounded-lg bg-stone-100 p-1">

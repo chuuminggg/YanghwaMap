@@ -44,9 +44,10 @@ export function ListPage() {
         </ul>
       )}
 
+      {/* 하단 탭바(약 60px) 위로 띄운다 — bottom-6 이면 '목록' 탭에 정확히 겹친다 */}
       <Link
         to="/new"
-        className="fixed bottom-6 left-1/2 z-30 -translate-x-1/2 rounded-full bg-brand-500 px-6 py-3 font-medium text-white shadow-lg hover:bg-brand-600"
+        className="fixed bottom-20 left-1/2 z-30 -translate-x-1/2 rounded-full bg-brand-500 px-6 py-3 font-medium text-white shadow-lg hover:bg-brand-600"
       >
         + 맛집 추가
       </Link>
